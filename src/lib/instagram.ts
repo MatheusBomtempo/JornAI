@@ -19,7 +19,7 @@ export interface PublishResult {
 }
 
 function baseUrl(): string {
-  return `https://graph.facebook.com/${env.instagram.graphVersion}`;
+  return `https://graph.instagram.com/${env.instagram.graphVersion}`;
 }
 
 function assertConfigured(): { userId: string; token: string } {
