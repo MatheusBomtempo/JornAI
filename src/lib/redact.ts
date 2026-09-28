@@ -75,7 +75,16 @@ const HONORIFIC_NAME_RE = new RegExp(
  * que vem logo depois; esta heurística devolve o verbo pro texto. */
 const TRAILING_VERB_RE = /\s+[A-ZÀ-Ú]{3,}(OU|ARAM|ERAM|IRAM|AVA|AVAM|IA|IAM)$/;
 
-export function redactSensitive(text: string): RedactResult {
+/**
+ * `keepNames`: pra matéria já publicada (link), nome de pessoa é informação
+ * pública e jornalística ("Lucas, de 12 anos, é campeão...") — só os padrões
+ * de dado sensível (CPF, telefone…) continuam sendo removidos. Os regex de
+ * nome existem por causa de boletim de ocorrência/documento.
+ */
+export function redactSensitive(
+  text: string,
+  opts: { keepNames?: boolean } = {},
+): RedactResult {
   let redactedCount = 0;
   let out = text;
   for (const { label, re } of PATTERNS) {
@@ -84,6 +93,7 @@ export function redactSensitive(text: string): RedactResult {
       return label;
     });
   }
+  if (opts.keepNames) return { text: out, redactedCount };
   for (const re of [NAME_WITH_AGE_RE, CAPS_NAME_WITH_AGE_RE]) {
     out = out.replace(re, (_m, _name: string, age: string) => {
       redactedCount++;

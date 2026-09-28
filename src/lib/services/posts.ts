@@ -66,23 +66,43 @@ function assertSameCompany(postCompanyId: string, userCompanyId: string): void {
 
 // ── 1) Criar post + pipeline de IA (só texto) ────────────────
 export async function createPostWithAi(user: CompanyUser, input: CreatePostInput) {
-  let sourceText = input.text ?? null;
+  // Links colados no meio do texto também são fonte: sem isso, "link1 link2"
+  // (ou link + observação) ia pra IA só como URL crua, sem nenhum conteúdo
+  // lido — ela acabava escrevendo só sobre um deles (ou pelo slug da URL).
+  const textUrls = extractUrls(input.text ?? "");
+  const urls = [...new Set([input.url, ...textUrls].filter(Boolean) as string[])]
+    .slice(0, MAX_LINKS);
+  const textWithoutUrls = stripUrls(input.text ?? "");
+  let sourceText = textWithoutUrls || null;
 
-  // Material de apoio: link raspado e/ou documento anexado (PDF/txt) —
+  // Material de apoio: link(s) raspado(s) e/ou documento anexado (PDF/txt) —
   // passa pelo pipeline de compactação antes de ir pro prompt (ver compact.ts):
   // documento estruturado (boletim, laudo, nota) tem só os campos extraídos
   // por regra, sem gastar token de IA nisso; texto genérico é cortado num
   // teto mais justo. Reduz tokens e redige dado pessoal ANTES da IA ver.
   const support: string[] = [];
-  if (input.url) {
-    const scraped = await scrapeUrl(input.url);
-    const compacted = compactSource(scraped.content);
+  const scrapes = await Promise.allSettled(urls.map((u) => scrapeUrl(u)));
+  const titles: string[] = [];
+  scrapes.forEach((r, i) => {
+    if (r.status === "rejected") {
+      console.warn(`[scrape] falhou ${urls[i]}: ${(r.reason as Error).message}`);
+      return;
+    }
+    // Matéria já publicada: nomes são públicos e jornalísticos, não redige.
+    const compacted = compactSource(r.value.content, { keepNames: true });
     logCompaction("link", compacted);
     support.push(
-      `[Link (${labelKind(compacted.kind)}): ${input.url}]\n${compacted.text}`,
+      `[Link ${i + 1} de ${urls.length} (${labelKind(compacted.kind)}): ${urls[i]}]\n${compacted.text}`,
     );
-    if (!sourceText && scraped.title) sourceText = scraped.title;
+    if (r.value.title) titles.push(r.value.title);
+  });
+  // Nenhum link legível e nada mais pra usar: mesmo erro de antes (o do
+  // primeiro link), em vez de mandar a IA escrever sobre URL crua.
+  const firstFailure = scrapes.find((r) => r.status === "rejected");
+  if (urls.length && !support.length && !sourceText && !input.document && firstFailure) {
+    throw (firstFailure as PromiseRejectedResult).reason;
   }
+  if (!sourceText && titles.length) sourceText = titles.join("\n");
   if (input.document) {
     const compacted = compactSource(input.document.text);
     logCompaction("documento", compacted);
@@ -93,7 +113,7 @@ export async function createPostWithAi(user: CompanyUser, input: CreatePostInput
   const scrapedContent = support.length ? support.join("\n\n---\n\n") : null;
 
   // Tipo de fonte derivado (a UI não pergunta mais).
-  const sourceType = input.url
+  const sourceType = urls.length
     ? "link"
     : input.document
       ? "document"
@@ -109,7 +129,7 @@ export async function createPostWithAi(user: CompanyUser, input: CreatePostInput
       createdBy: user.id,
       sourceType,
       sourceText,
-      sourceUrl: input.url ?? null,
+      sourceUrl: urls[0] ?? null,
       scrapedContent,
       credits: credits.length ? credits : undefined,
       status: POST_STATUS.PROCESSING_AI,
@@ -123,7 +143,7 @@ export async function createPostWithAi(user: CompanyUser, input: CreatePostInput
   try {
     const content = await generatePostContent({
       text: sourceText,
-      sourceUrl: input.url,
+      sourceUrl: urls[0],
       scrapedContent,
       hasPhoto: !!input.photo,
       credits: credits as Credit[],
@@ -829,6 +849,20 @@ export function listAuditLogs(companyId: string, limit = 50) {
     orderBy: { purgedAt: "desc" },
     take: limit,
   });
+}
+
+/** Quantos links de um mesmo envio são lidos (cada um vira até ~8k chars no prompt). */
+const MAX_LINKS = 4;
+const URL_RE = /https?:\/\/[^\s<>"']+/gi;
+
+function extractUrls(text: string): string[] {
+  return (text.match(URL_RE) ?? []).map((u) => u.replace(/[).,;!?]+$/, ""));
+}
+
+/** Texto sem as URLs; sobra de conector ("link1 e link2" → "e") conta como vazio. */
+function stripUrls(text: string): string {
+  const rest = text.replace(URL_RE, "").replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
+  return (rest.match(/[\p{L}\p{N}]/gu) ?? []).length >= 10 ? rest : "";
 }
 
 function labelKind(kind: "structured" | "generic"): string {

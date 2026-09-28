@@ -65,10 +65,13 @@ export interface CompactResult {
   removedDuplicateLines: number;
 }
 
-export function compactSource(raw: string): CompactResult {
+export function compactSource(
+  raw: string,
+  opts: { keepNames?: boolean } = {},
+): CompactResult {
   const trimmed = raw.trim();
   const { text: joined, removedDuplicateLines } = markdownify(trimmed);
-  const { text: markdown, redactedCount } = redactSensitive(joined);
+  const { text: markdown, redactedCount } = redactSensitive(joined, opts);
   const kind = classifyContent(markdown);
 
   let compactText: string;

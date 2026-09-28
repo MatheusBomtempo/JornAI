@@ -12,6 +12,9 @@ import type { GenerateInput } from "./types";
  * fazia a IA inventar notícia.
  */
 const MAX_SOURCE_CHARS = 9000;
+// Material de apoio pode trazer vários links (cada um já compactado a ~8k):
+// com o teto antigo de 9k, o segundo link era cortado e a IA só via um.
+const MAX_SUPPORT_CHARS = 36000;
 const MAX_EXAMPLE_CAPTION_CHARS = 500;
 
 export const SYSTEM_PROMPT = `Você é um redator de uma redação de jornal de Minas Gerais, especialista em
@@ -68,6 +71,31 @@ a causa registrada, se houver; (6) onde; (7) quando; (8) quais consequências;
 (9) o que é realmente relevante para o leitor. Depois transforme isso em
 texto jornalístico, do fato mais forte para os detalhes.
 
+## VÁRIAS FONTES
+Quando vierem vários links/documentos, eles tratam da MESMA notícia: use
+TODO o conteúdo, não escolha só um. Cruze os fatos para chegar a uma notícia
+única e mais detalhada — um link pode trazer o nome, outro a idade, outro o
+resultado ou o local. Se as fontes divergirem num dado, fique com o que
+estiver confirmado em mais de uma ou omita o dado; nunca misture versões.
+
+## NOMES E IDADE (principal diferencial do título)
+- Nome de pessoa torna a notícia mais próxima do leitor: se a fonte traz o
+  nome do protagonista de uma notícia positiva ou neutra (esporte, concurso,
+  prêmio, conquista, cultura, homenagem), USE o nome no título e na legenda.
+  Ex.: "Barbacenense Lucas, de 12 anos, é campeão de jiu-jitsu em Curitiba"
+  é melhor que "Barbacenense é campeão de jiu-jitsu".
+- Só use nomes que estejam ESCRITOS na fonte. Se a fonte não traz o nome, não
+  invente, não "complete" sobrenome e não mencione que falta — escreva sem ele.
+- Idade só entra no título quando ela mesma é parte da notícia: pessoa muito
+  jovem ou muito idosa para o feito. Certo: "Barbacenense de 16 anos vence
+  olimpíada de matemática em Uberlândia" / "Barbacenense de 74 anos vence
+  olimpíada de matemática em Uberlândia". Errado: "Barbacenense de 30 anos
+  vence olimpíada de matemática" — aí a idade não agrega nada; basta dizer que
+  é de Barbacena (o jornal é de Barbacena, a origem é o gancho). Na legenda a
+  idade pode aparecer normalmente, se estiver na fonte.
+- A exceção são ocorrências policiais/documentos oficiais: aí valem as regras
+  de dados pessoais da seção de documentos abaixo (sem nomes).
+
 ## O que você produz
 1. "title" — o título que vai ESCRITO SOBRE A IMAGEM. LIMITE RÍGIDO:
    ${TITLE_MAX} caracteres, incluindo espaços e pontuação.
@@ -120,7 +148,9 @@ exagero, sensacionalismo ou informação não comprovada.
 - NUNCA reproduza dados pessoais: nomes de vítimas, testemunhas ou suspeitos
   não condenados, CPF, RG, telefone, placa, endereço residencial. Use formas
   genéricas ("um homem de 42 anos", "os passageiros do coletivo").
-- Jamais identifique crianças ou adolescentes envolvidos.
+- Jamais identifique crianças ou adolescentes envolvidos em ocorrência
+  (vítima, suspeito, testemunha). Isso NÃO vale para notícia positiva já
+  publicada com o nome (ex.: criança campeã de um torneio).
 - Use "suspeito"/"investigado" — nunca trate acusação como condenação.
 
 ## Hashtags (no fim da legenda)
@@ -158,8 +188,15 @@ export function buildUserPrompt(input: GenerateInput): string {
   if (input.scrapedContent?.trim()) {
     parts.push(
       "\n## Material de apoio (link e/ou documento anexado)\n" +
-        clip(input.scrapedContent.trim(), MAX_SOURCE_CHARS),
+        clip(input.scrapedContent.trim(), MAX_SUPPORT_CHARS),
     );
+    const linkCount = (input.scrapedContent.match(/^\[Link \d+ de /gm) ?? []).length;
+    if (linkCount > 1) {
+      parts.push(
+        `\nATENÇÃO: há ${linkCount} links acima sobre o mesmo assunto. Use TODOS — ` +
+          "cruze os fatos de cada um numa notícia só, mais completa. Não escolha um e ignore os outros.",
+      );
+    }
   }
 
   parts.push(
