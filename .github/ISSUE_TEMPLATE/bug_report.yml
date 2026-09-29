@@ -1,0 +1,27 @@
+name: Bug report
+description: Something is broken or produces a wrong result
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you expect, and what did you get instead?
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: If the bug is about a generated post, say what kind of source you used (text, link, PDF). Please remove personal data first.
+    validations:
+      required: true
+  - type: input
+    id: setup
+    attributes:
+      label: Setup
+      description: "`APP_LANGUAGE`, `AI_PROVIDER`, storage provider, deployment (local / Vercel), browser"
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or screenshots
