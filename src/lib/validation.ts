@@ -14,7 +14,7 @@ const creditTypeIds = CREDIT_TYPES.map((c) => c.id) as [string, ...string[]];
 /** Credit/tag: type + @handle. */
 export const creditSchema = z.object({
   type: z.enum(creditTypeIds),
-  handle: z.string().trim().min(1, "Informe o @ do perfil."),
+  handle: z.string().trim().min(1, "Provide the profile @."),
 });
 
 // ── Auth ─────────────────────────────────────────────────────
@@ -119,7 +119,7 @@ export const editVersionSchema = z
   });
 
 export const rejectSchema = z.object({
-  reason: z.string().min(3, "Informe o motivo da recusa."),
+  reason: z.string().min(3, "Provide a reason for the rejection."),
 });
 
 // ── Exemplos de estilo ───────────────────────────────────────
@@ -131,7 +131,7 @@ export const styleExampleSchema = z
     orderIndex: z.number().int().optional(),
   })
   .refine((d) => !!(d.title || d.subtitle || d.caption), {
-    message: "Preencha ao menos um campo do exemplo.",
+    message: "Fill in at least one field of the example.",
   });
 
 // ── Templates ────────────────────────────────────────────────
@@ -168,14 +168,14 @@ const hexColorSchema = z
   .regex(/^#[0-9a-fA-F]{6}$/, "Use a color in the #rrggbb format.");
 
 export const createCompanySchema = z.object({
-  name: z.string().trim().min(1, "Informe o nome da empresa."),
+  name: z.string().trim().min(1, "Provide the company name."),
   logoUrl: z.string().url().optional(),
   instagramHandle: z.string().trim().max(60).optional(),
 });
 
 /** Edit after onboarding (Admin → Company). `null` clears the field. */
 export const updateCompanySchema = z.object({
-  name: z.string().trim().min(1, "Informe o nome da empresa.").optional(),
+  name: z.string().trim().min(1, "Provide the company name.").optional(),
   logoUrl: z.string().url().nullable().optional(),
   instagramHandle: z.string().trim().max(60).nullable().optional(),
   /** Brand colors — used in the video templates. See VIDEO_CARD_STYLES. */
