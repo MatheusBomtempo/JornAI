@@ -3,6 +3,7 @@ import { Inter, Poppins } from "next/font/google";
 import { getServerDictionary } from "@/lib/i18n/server";
 import { LocaleProvider } from "@/components/LocaleProvider";
 import { ActionOverlayProvider } from "@/components/ActionOverlay";
+import { BuildBadge } from "@/components/BuildBadge";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
@@ -45,6 +46,7 @@ export default async function RootLayout({
         <LocaleProvider initialLocale={locale}>
           <ActionOverlayProvider>{children}</ActionOverlayProvider>
         </LocaleProvider>
+        <BuildBadge />
       </body>
     </html>
   );
