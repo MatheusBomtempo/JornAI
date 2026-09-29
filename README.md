@@ -50,8 +50,8 @@ JornAI works in one language per deployment — the language of the sources and 
 
 | Value | Effect |
 |---|---|
-| `pt` (default) | Posts are written in Brazilian Portuguese; source cleanup, personal-data redaction and the fact validator use Brazilian rules (CPF, plates, police-report forms, `dd/mm/yyyy` dates). |
-| `en` | Posts are written in English; same pipeline with English rules (SSN, US phone numbers, `mm/dd/yyyy` dates). |
+| `en` (default) | Posts are written in English; source cleanup, personal-data redaction and the fact validator use English rules (SSN, US phone numbers, `mm/dd/yyyy` dates). |
+| `pt` | Posts are written in Brazilian Portuguese; same pipeline with Brazilian rules (CPF, plates, police-report forms, `dd/mm/yyyy` dates). |
 
 The prompts themselves are written in English; only the examples and rules the model must reproduce live in the language pack (`src/lib/language/<lang>/`). To add a language, add a pack there and register it in `src/lib/language/index.ts`. `APP_LANGUAGE` also sets the default interface language (each person can still switch it in the UI); the code, comments and logs are always English.
 

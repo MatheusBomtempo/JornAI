@@ -1,7 +1,7 @@
 import { LANGUAGES, type Language } from "./types";
 
-/** Used when APP_LANGUAGE is not set — keeps existing deployments unchanged. */
-export const DEFAULT_LANGUAGE: Language = "pt";
+/** Used when APP_LANGUAGE is not set. */
+export const DEFAULT_LANGUAGE: Language = "en";
 
 /**
  * Accepts "pt", "pt-BR", "en", "en-US"… (case-insensitive) and returns the
