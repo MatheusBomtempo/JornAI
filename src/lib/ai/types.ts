@@ -1,6 +1,6 @@
 import type { Credit } from "../domain";
 
-/** Um exemplo real de post do jornal, usado como referência de estilo. */
+/** A real post example from the newspaper, used as a style reference. */
 export interface StyleExampleInput {
   title?: string | null;
   subtitle?: string | null;
@@ -8,44 +8,44 @@ export interface StyleExampleInput {
 }
 
 /**
- * Entrada do pipeline de IA (somente texto — sem visão nem geração de imagem).
- * A captura é unificada: o jornalista manda o que tem e a IA infere o contexto
- * (editoria, tom, região) sozinha.
+ * Input of the AI pipeline (text only — no vision and no image generation).
+ * Capture is unified: the reporter sends what they have and the AI infers the
+ * context (section, tone, region) by itself.
  */
 export interface GenerateInput {
-  /** Texto apurado/colado pelo jornalista. */
+  /** Text gathered/pasted by the reporter. */
   text?: string | null;
-  /** Link de origem, quando a fonte foi uma URL. */
+  /** Source link, when the source was a URL. */
   sourceUrl?: string | null;
-  /** Material de apoio: conteúdo do link e/ou documento anexado (PDF). */
+  /** Supporting material: content of the link and/or attached document (PDF). */
   scrapedContent?: string | null;
-  /** Se o post tem foto. */
+  /** Whether the post has a photo. */
   hasPhoto?: boolean;
-  /** Créditos/marcações que devem entrar no fim da legenda. */
+  /** Credits/tags that must go at the end of the caption. */
   credits?: Credit[] | null;
-  /** Exemplos de estilo do jornal. */
+  /** Style examples from the newspaper. */
   examples?: StyleExampleInput[] | null;
-  /** Ajuste pedido na regeneração ("mais curto", "tom mais sóbrio"…). */
+  /** Adjustment requested on regeneration ("shorter", "more sober tone"…). */
   guidance?: string | null;
 }
 
-/** Saída estruturada da IA. */
+/** Structured output of the AI. */
 export interface GeneratedContent {
-  /** Título da arte — máx. 69 caracteres. */
+  /** Art title — max. 69 characters. */
   title: string;
-  /** Subtítulo da arte — máx. 149 caracteres. */
+  /** Art subtitle — max. 149 characters. */
   subtitle: string;
-  /** Legenda completa do Instagram (com hashtags). */
+  /** Full Instagram caption (with hashtags). */
   instagramCaption: string;
   /**
-   * Exatamente 2 sugestões curtas de busca de imagem (ex.: "viatura polícia
-   * MG"), pra ajudar o jornalista a achar uma foto quando ainda não tem uma.
-   * Puramente auxiliar: nunca escolhe, baixa nem publica imagem sozinha.
+   * Exactly 2 short image-search suggestions (e.g. "police car patrol"), to
+   * help the reporter find a photo when they do not have one yet. Purely
+   * auxiliary: it never picks, downloads or publishes an image on its own.
    */
   imageSuggestions: string[];
   /**
-   * Quem gerou de fato — importante com fallback entre provedores: o post
-   * pode ter sido escrito pelo provider principal ou por um dos backups.
+   * Who actually generated it — important with provider fallback: the post
+   * may have been written by the main provider or by one of the backups.
    */
   meta?: { provider: string; model: string };
 }

@@ -11,7 +11,7 @@ export const DELETE = route(
     requireRole(user, "admin");
     const { id } = await ctx.params;
     const key = await prisma.apiKey.findUnique({ where: { id }, select: { companyId: true } });
-    if (!key || key.companyId !== user.companyId) throw notFound("Chave não encontrada.");
+    if (!key || key.companyId !== user.companyId) throw notFound("API key not found.");
     await prisma.apiKey.update({
       where: { id },
       data: { revokedAt: new Date() },

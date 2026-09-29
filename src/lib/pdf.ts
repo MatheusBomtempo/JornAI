@@ -1,11 +1,11 @@
 import "server-only";
 
 /**
- * Extração de texto de PDF (boletim de ocorrência, nota oficial, matéria).
+ * Text extraction from a PDF (police report, official statement, article).
  *
- * O pdf.js usado pelo `unpdf` depende de `Promise.withResolvers`, que só existe
- * a partir do Node 22. Como o projeto suporta Node 20, aplicamos o polyfill
- * antes de carregar a biblioteca. Em Node 22+ isso é um no-op.
+ * The pdf.js used by `unpdf` depends on `Promise.withResolvers`, which only
+ * exists from Node 22 on. Since the project supports Node 20, we apply the
+ * polyfill before loading the library. On Node 22+ this is a no-op.
  */
 if (typeof (Promise as { withResolvers?: unknown }).withResolvers !== "function") {
   (Promise as unknown as { withResolvers: unknown }).withResolvers = function <T>() {
@@ -20,10 +20,11 @@ if (typeof (Promise as { withResolvers?: unknown }).withResolvers !== "function"
 }
 
 /**
- * Teto de caracteres extraídos do documento. Este NÃO é o texto que vai pra
- * IA — a compactação (compact.ts) ainda filtra/reduz depois. Precisa ser
- * folgado: um BO real de 15 páginas tem o histórico (a parte que importa)
- * lá no fim, e um teto apertado aqui cortava a notícia antes da limpeza.
+ * Ceiling of characters extracted from the document. This is NOT the text that
+ * goes to the AI — the compaction (compact.ts) still filters/reduces
+ * afterwards. It has to be generous: a real 15-page police report has the
+ * narrative (the part that matters) at the very end, and a tight ceiling here
+ * cut the story before the cleanup.
  */
 export const MAX_DOC_CHARS = 60000;
 
@@ -43,7 +44,7 @@ export async function extractPdfText(
     doc = await getDocumentProxy(new Uint8Array(buffer));
   } catch {
     throw new Error(
-      "Não foi possível ler o PDF (arquivo corrompido ou protegido por senha).",
+      "Could not read the PDF (corrupted or password-protected file).",
     );
   }
 
@@ -52,7 +53,7 @@ export async function extractPdfText(
 
   if (!normalized) {
     throw new Error(
-      "O PDF não tem texto selecionável — provavelmente é um documento escaneado (imagem). Copie o texto manualmente.",
+      "The PDF has no selectable text — it is probably a scanned document (image). Copy the text manually.",
     );
   }
 
@@ -63,10 +64,10 @@ export async function extractPdfText(
   };
 }
 
-/** Texto simples (.txt) — mesma normalização. */
+/** Plain text (.txt) — same normalization. */
 export function extractPlainText(buffer: Buffer): ExtractedDocument {
   const normalized = normalize(buffer.toString("utf8"));
-  if (!normalized) throw new Error("O arquivo está vazio.");
+  if (!normalized) throw new Error("The file is empty.");
   return {
     text: normalized.slice(0, MAX_DOC_CHARS),
     pages: 1,

@@ -1,16 +1,16 @@
 /**
- * Fonte única de verdade do domínio do JornAI: papéis, estados do post,
- * origens de versão e decisões de revisão. Espelha a state machine do SPEC.md.
+ * Single source of truth of the JornAI domain: roles, post states, version
+ * origins and review decisions. Mirrors the state machine of SPEC.md.
  */
 
 export const USER_ROLES = ["admin", "manager", "staff"] as const;
 export type UserRole = (typeof USER_ROLES)[number];
 
 /**
- * Publicação de post criado por staff (jornalista): admin/manager publicam
- * com 1 aprovação (própria autoridade); staff sozinho não pode aprovar a
- * própria pauta, então precisa desse tanto de colegas (jornalistas) pra
- * garantir revisão por pares antes de ir pro ar.
+ * Publishing a post created by staff (reporter): admin/manager publish with 1
+ * approval (their own authority); staff alone cannot approve their own story,
+ * so it needs this many peers (reporters) to guarantee peer review before it
+ * goes live.
  */
 export const PEER_APPROVALS_NEEDED = 2;
 
@@ -31,8 +31,8 @@ export const SOURCE_TYPES = ["photo", "text", "link", "document"] as const;
 export type SourceType = (typeof SOURCE_TYPES)[number];
 
 /**
- * Créditos/marcações do post (@perfil). O emoji vai na legenda antes do @,
- * no padrão da redação: "📸 @fotografo".
+ * Post credits/tags (@profile). The emoji goes in the caption before the @,
+ * following the newsroom's standard: "📸 @photographer".
  */
 export const CREDIT_TYPES = [
   { id: "photo", emoji: "📸" },
@@ -54,13 +54,13 @@ export function creditEmoji(type: CreditTypeId): string {
   return CREDIT_TYPES.find((c) => c.id === type)?.emoji ?? "@";
 }
 
-/** Normaliza o @ digitado pelo usuário (aceita com ou sem arroba). */
+/** Normalizes the @ typed by the user (accepts with or without the at-sign). */
 export function normalizeHandle(raw: string): string {
   const clean = raw.trim().replace(/^@+/, "").replace(/\s+/g, "");
   return clean ? `@${clean}` : "";
 }
 
-/** Linha de créditos como vai na legenda: "📸 @fulano". */
+/** Credits line as it goes in the caption: "📸 @someone". */
 export function formatCredit(c: Credit): string {
   const handle = normalizeHandle(c.handle);
   if (!handle) return "";
@@ -68,11 +68,11 @@ export function formatCredit(c: Credit): string {
 }
 
 /**
- * Ordena templates para exibição/seleção padrão: formatos mais "retrato"
- * primeiro (4:5 antes de 1:1) — é o padrão da redação e por isso o que
- * aparece pré-selecionado no editor de arte. Baseado na proporção real
- * (altura/largura), não na ordem de criação, então continua correto mesmo
- * se um template for recriado ou a ordem de cadastro mudar.
+ * Sorts templates for display/default selection: more "portrait" formats
+ * first (4:5 before 1:1) — it is the newsroom's standard and therefore what
+ * shows up pre-selected in the art editor. Based on the real proportion
+ * (height/width), not on creation order, so it stays correct even if a
+ * template is recreated or the registration order changes.
  */
 export function sortTemplatesByFormat<
   T extends { canvasWidth: number; canvasHeight: number; createdAt: Date | string },
@@ -80,7 +80,7 @@ export function sortTemplatesByFormat<
   return [...templates].sort((a, b) => {
     const ratioA = a.canvasHeight / a.canvasWidth;
     const ratioB = b.canvasHeight / b.canvasWidth;
-    if (ratioA !== ratioB) return ratioB - ratioA; // mais alto (retrato) primeiro
+    if (ratioA !== ratioB) return ratioB - ratioA; // taller (portrait) first
     return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
   });
 }
@@ -110,8 +110,8 @@ export type PublicationStatus =
   (typeof PUBLICATION_STATUS)[keyof typeof PUBLICATION_STATUS];
 
 /**
- * Transições de status permitidas. Base para validar mudanças de estado
- * e para eventuais checagens de UI.
+ * Allowed status transitions. Basis for validating state changes and for
+ * eventual UI checks.
  */
 export const ALLOWED_TRANSITIONS: Record<PostStatus, PostStatus[]> = {
   processing_ai: ["editing_art", "failed"],

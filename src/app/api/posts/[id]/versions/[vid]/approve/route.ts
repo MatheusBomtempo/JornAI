@@ -3,8 +3,8 @@ import { requireCompanyUser } from "@/lib/auth";
 import { approveAndPublish } from "@/lib/services/posts";
 import { ok, route } from "@/lib/http";
 
-// Vídeo: o Instagram processa o container de forma assíncrona (polling de
-// status_code) antes de publicar — pode levar bem mais que o padrão.
+// Video: Instagram processes the container asynchronously (status_code
+// polling) before publishing — it can take a lot longer than the default.
 export const maxDuration = 290;
 
 // POST /posts/:id/versions/:vid/approve — aprova e publica no Instagram

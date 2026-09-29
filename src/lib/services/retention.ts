@@ -6,10 +6,10 @@ const PUBLISHED_TTL_DAYS = 2;
 const PENDING_TTL_DAYS = 3; // in_review | failed
 
 /**
- * O que buscar de cada post antes de apagá-lo — todo arquivo que ele tem no
- * storage. Único lugar que define isso (retenção, apagar manual e o reset do
- * admin usam esta constante), pra ninguém esquecer um tipo de arquivo: o
- * frame de prévia do vídeo ficava órfão no R2 antes de estar aqui.
+ * What to fetch from each post before deleting it — every file it has in
+ * storage. The only place that defines this (retention, manual delete and the
+ * admin reset all use this constant), so nobody forgets a file type: the
+ * video preview frame used to be left orphaned on R2 before it was here.
  */
 export const PURGE_SELECT = {
   id: true,
@@ -26,12 +26,12 @@ type PurgeCandidate = {
 };
 
 /**
- * Apaga o storage (fotos + arte renderizada) dos posts dados e só então as
- * linhas do banco (via purge_posts, com audit log — ver
- * prisma/migrations/..._purge_posts_function). Compartilhado pela limpeza
- * automática (cleanupExpiredPosts) e pelo apagar manual do admin
- * (deletePostNow, em services/posts.ts) — mesma garantia nos dois: nunca
- * sobra arquivo órfão no R2 nem linha sem audit log.
+ * Deletes the storage (photos + rendered art) of the given posts and only then
+ * the database rows (via purge_posts, with an audit log — see
+ * prisma/migrations/..._purge_posts_function). Shared by the automatic cleanup
+ * (cleanupExpiredPosts) and the admin's manual delete (deletePostNow, in
+ * services/posts.ts) — same guarantee in both: no orphaned file is ever left
+ * on R2 and no row is left without an audit log.
  */
 export async function purgePostsWithMedia(posts: PurgeCandidate[]): Promise<void> {
   if (posts.length === 0) return;
@@ -49,14 +49,14 @@ export async function purgePostsWithMedia(posts: PurgeCandidate[]): Promise<void
     }
   }
 
-  // Apaga o storage primeiro; se uma URL falhar, loga e segue — a política de
-  // retenção (o dado tem que sumir do banco no prazo) importa mais que um
-  // objeto órfão raro no R2, que não pesa nada no uso (ver conversa sobre
-  // custo de storage).
+  // Delete the storage first; if a URL fails, log and carry on — the
+  // retention policy (the data must leave the database on time) matters more
+  // than a rare orphaned object on R2, which weighs nothing in usage (see the
+  // discussion about storage cost).
   await Promise.all(
     [...urls].map((url) =>
       deleteObjectByUrl(url).catch((err) =>
-        console.error(`[JornAI] Falha ao apagar do storage (${url}):`, err),
+        console.error(`[JornAI] Failed to delete from storage (${url}):`, err),
       ),
     ),
   );
@@ -66,15 +66,15 @@ export async function purgePostsWithMedia(posts: PurgeCandidate[]): Promise<void
 }
 
 /**
- * Limpeza de posts expirados (publicado há mais de 2 dias, ou em revisão/
- * falhou há mais de 3). "Apagar" nunca mexe no Instagram — só remove do
- * nosso banco+storage.
+ * Cleanup of expired posts (published more than 2 days ago, or in review/
+ * failed more than 3 days ago). "Delete" never touches Instagram — it only
+ * removes from our database + storage.
  *
- * A regra de expiração mora aqui (não em SQL) de propósito: só o app
- * consegue apagar o arquivo real no R2, então o app precisa decidir "quem
- * expirou" antes de apagar storage, e usar o MESMO conjunto de ids depois
- * pra apagar as linhas do banco — daí purge_posts(ids) receber ids prontos
- * em vez de recalcular a regra.
+ * The expiry rule lives here (not in SQL) on purpose: only the app can delete
+ * the real file on R2, so the app has to decide "who expired" before deleting
+ * storage, and use the SAME set of ids afterwards to delete the database rows
+ * — hence purge_posts(ids) receiving ready-made ids instead of recomputing the
+ * rule.
  */
 export async function cleanupExpiredPosts(): Promise<{ purged: number }> {
   const publishedCutoff = new Date(Date.now() - PUBLISHED_TTL_DAYS * 86_400_000);
@@ -95,16 +95,16 @@ export async function cleanupExpiredPosts(): Promise<{ purged: number }> {
   return { purged: expired.length };
 }
 
-const THROTTLE_MS = 60 * 60 * 1000; // no máximo 1x por hora
+const THROTTLE_MS = 60 * 60 * 1000; // at most once an hour
 let lastRunAt = 0;
 
 /**
- * Despertador oportunista: roda a limpeza quando alguém carrega o feed, com
- * throttle em memória — só um backstop para dev local (sem cron). Em prod
- * (Vercel), quem manda é o Vercel Cron batendo em /api/cron/cleanup 1x/dia
- * (ver vercel.json); esta função continua inofensiva ali porque o throttle
- * em memória zera a cada cold start, mas cleanupExpiredPosts() é barata
- * quando não há nada expirado.
+ * Opportunistic alarm clock: runs the cleanup when someone loads the feed,
+ * with an in-memory throttle — only a backstop for local dev (no cron). In
+ * prod (Vercel), what drives it is Vercel Cron hitting /api/cron/cleanup once
+ * a day (see vercel.json); this function stays harmless there because the
+ * in-memory throttle resets on every cold start, but cleanupExpiredPosts() is
+ * cheap when nothing has expired.
  */
 export async function maybeCleanupExpiredPosts(): Promise<void> {
   const now = Date.now();
@@ -113,6 +113,6 @@ export async function maybeCleanupExpiredPosts(): Promise<void> {
   try {
     await cleanupExpiredPosts();
   } catch (err) {
-    console.error("[JornAI] Falha ao rodar cleanupExpiredPosts:", err);
+    console.error("[JornAI] Failed to run cleanupExpiredPosts:", err);
   }
 }

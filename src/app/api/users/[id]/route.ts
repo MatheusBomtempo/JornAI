@@ -6,8 +6,8 @@ import { updateUserSchema } from "@/lib/validation";
 import { forbidden, notFound, ok, route } from "@/lib/http";
 import type { Prisma } from "@prisma/client";
 
-// PATCH /users/:id — manager/admin atualizam papel/status/senha. Manager não
-// pode promover ninguém a admin — só admin mexe em admin.
+// PATCH /users/:id — manager/admin update role/status/password. A manager
+// cannot promote anyone to admin — only admin touches admin.
 export const PATCH = route(
   async (req: NextRequest, ctx: { params: Promise<{ id: string }> }) => {
     const actor = await requireCompanyUser();
@@ -16,12 +16,12 @@ export const PATCH = route(
     const data = updateUserSchema.parse(await req.json());
 
     if (actor.role === "manager" && data.role === "admin") {
-      throw forbidden("Gerente não pode promover ninguém a admin.");
+      throw forbidden("A manager cannot promote anyone to admin.");
     }
 
     const target = await prisma.user.findUnique({ where: { id }, select: { companyId: true } });
     if (!target || target.companyId !== actor.companyId) {
-      throw notFound("Usuário não encontrado.");
+      throw notFound("User not found.");
     }
 
     const update: Prisma.UserUpdateInput = {};

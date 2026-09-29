@@ -11,17 +11,18 @@ interface Props {
   hasArt: boolean;
   alreadyApproved: boolean;
   /**
-   * "overlay": chip discreto por cima da capa, só aparece no hover — pensado
-   * pra desktop (mouse). "inline": sempre visível, botão maior, embaixo do
-   * crédito — hover não existe em touch, e mobile é o uso principal do feed.
+   * "overlay": discreet chip on top of the cover, only shows on hover —
+   * designed for desktop (mouse). "inline": always visible, bigger button,
+   * below the credit — hover does not exist on touch, and mobile is the main
+   * use of the feed.
    */
   variant: "overlay" | "inline";
 }
 
 /**
- * Aprovar/recusar direto no card do feed, sem abrir o post. O card inteiro é
- * um <Link>, então todo clique aqui precisa parar propagação/navegação
- * (mesmo padrão do DeletePostButton).
+ * Approve/reject right on the feed card, without opening the post. The whole
+ * card is a <Link>, so every click here has to stop propagation/navigation
+ * (same pattern as DeletePostButton).
  */
 export function CardQuickActions({ postId, versionId, hasArt, alreadyApproved, variant }: Props) {
   const router = useRouter();

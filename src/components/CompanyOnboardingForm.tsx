@@ -35,7 +35,7 @@ export function CompanyOnboardingForm() {
     try {
       const fd = new FormData();
       fd.append("file", file);
-      fd.append("kind", "overlay"); // preserva transparência/qualidade — sem recompressão
+      fd.append("kind", "overlay"); // preserves transparency/quality — no recompression
       const { url } = await apiPost<{ url: string }>("/api/upload", fd);
       setLogoUrl(url);
     } catch (err) {

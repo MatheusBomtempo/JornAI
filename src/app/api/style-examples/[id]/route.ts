@@ -6,7 +6,7 @@ import { notFound, ok, route } from "@/lib/http";
 
 async function assertOwnedExample(id: string, companyId: string) {
   const example = await prisma.styleExample.findUnique({ where: { id }, select: { companyId: true } });
-  if (!example || example.companyId !== companyId) throw notFound("Exemplo não encontrado.");
+  if (!example || example.companyId !== companyId) throw notFound("Example not found.");
 }
 
 // PATCH /style-examples/:id — edita um exemplo (qualquer papel autenticado)

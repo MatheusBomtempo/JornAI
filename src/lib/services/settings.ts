@@ -1,7 +1,7 @@
 import "server-only";
 import { prisma } from "../db";
 
-/** 1 linha por empresa — cria com os padrões na primeira leitura/escrita. */
+/** 1 row per company — created with the defaults on the first read/write. */
 export function getAppSettings(companyId: string) {
   return prisma.appSettings.upsert({
     where: { companyId },

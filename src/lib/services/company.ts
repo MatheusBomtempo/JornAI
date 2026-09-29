@@ -11,12 +11,13 @@ interface CreateCompanyInput {
 }
 
 /**
- * Onboarding: o admin recém-logado (sem empresa ainda) cadastra a empresa
- * e já vira o primeiro membro dela. Um usuário só pode fazer isso uma vez —
- * depois, é o admin quem convida o resto do time (ver /api/users).
+ * Onboarding: the freshly logged-in admin (no company yet) registers the
+ * company and becomes its first member. A user can only do this once —
+ * afterwards, the admin is the one who invites the rest of the team (see
+ * /api/users).
  */
 export async function createCompanyForUser(user: User, input: CreateCompanyInput) {
-  if (user.companyId) throw conflict("Você já tem uma empresa cadastrada.");
+  if (user.companyId) throw conflict("You already have a company registered.");
 
   const company = await prisma.company.create({
     data: {
@@ -43,7 +44,7 @@ interface UpdateCompanyInput {
   brandColorAccent?: string | null;
 }
 
-/** Admin ajusta nome/logo/@/cores depois do onboarding (ver Admin → Empresa). */
+/** Admin adjusts name/logo/handle/colors after onboarding (see Admin → Company). */
 export function updateCompany(companyId: string, input: UpdateCompanyInput) {
   return prisma.company.update({
     where: { id: companyId },

@@ -1,13 +1,13 @@
 "use client";
 
 /**
- * Rascunhos de formulário persistidos em IndexedDB. Existe porque no
- * mobile — o público-alvo do app — o navegador descarrega a aba quando o
- * usuário sai pra escolher/tirar uma foto (câmera, galeria) e, ao voltar,
- * recarrega a página do zero: um `useState` sozinho perde tudo. sessionStorage
- * não resolve porque uma foto de câmera passa fácil da cota (~5MB) já
- * codificada em base64; IndexedDB guarda o File original e tem cota na
- * casa das centenas de MB.
+ * Form drafts persisted in IndexedDB. It exists because on mobile — the app's
+ * target audience — the browser unloads the tab when the user leaves to
+ * pick/take a photo (camera, gallery) and, on coming back, reloads the page
+ * from scratch: a bare `useState` loses everything. sessionStorage does not
+ * help because a camera photo easily exceeds its quota (~5MB) once encoded in
+ * base64; IndexedDB stores the original File and has a quota in the hundreds
+ * of MB.
  */
 
 const DB_NAME = "jornai-drafts";
@@ -53,7 +53,7 @@ export async function saveDraft<T>(key: string, value: T): Promise<void> {
       tx.onerror = () => reject(tx.error);
     });
   } catch {
-    // Armazenamento indisponível (modo privado, cota etc.) — segue sem persistir.
+    // Storage unavailable (private mode, quota etc.) — carry on without persisting.
   }
 }
 

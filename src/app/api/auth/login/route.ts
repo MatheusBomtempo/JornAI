@@ -9,7 +9,7 @@ export const POST = route(async (req: NextRequest) => {
   const user = await prisma.user.findUnique({ where: { email: body.email } });
 
   if (!user || !user.active || !(await verifyPassword(body.password, user.passwordHash))) {
-    throw unauthorized("E-mail ou senha inválidos.");
+    throw unauthorized("Invalid email or password.");
   }
 
   await setSessionCookie(user);

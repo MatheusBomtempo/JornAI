@@ -4,9 +4,9 @@ import { addPhotoSchema } from "@/lib/validation";
 import { addPhotoToPost } from "@/lib/services/posts";
 import { created, route } from "@/lib/http";
 
-// POST /posts/:id/photos — anexa uma foto extra a um post já criado (o
-// jornalista decidiu a foto depois de gerar o texto: achou uma melhor,
-// baixou do Google Imagens ou de um banco gratuito a partir de uma sugestão).
+// POST /posts/:id/photos — attaches an extra photo to an already-created post
+// (the reporter decided on the photo after generating the text: found a better
+// one, downloaded from Google Images or from a free library based on a suggestion).
 export const POST = route(
   async (req: NextRequest, ctx: { params: Promise<{ id: string }> }) => {
     const user = await requireCompanyUser();

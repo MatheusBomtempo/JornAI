@@ -7,10 +7,10 @@ import { apiDelete } from "@/lib/api-client";
 import { useLocale } from "./LocaleProvider";
 
 /**
- * Botão de apagar direto no card do feed. O card inteiro é um <Link>, então
- * todo clique aqui (botão e modal) precisa parar propagação/navegação.
- * Sempre visível (não só no hover) de propósito — hover não existe em touch,
- * e mobile é o uso principal do feed.
+ * Delete button right on the feed card. The whole card is a <Link>, so every
+ * click here (button and modal) has to stop propagation/navigation. Always
+ * visible (not only on hover) on purpose — hover does not exist on touch, and
+ * mobile is the main use of the feed.
  */
 export function DeletePostButton({ postId }: { postId: string }) {
   const router = useRouter();

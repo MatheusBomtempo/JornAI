@@ -1,4 +1,4 @@
-/** Modal de progresso das ações que avançam o fluxo (ver ActionOverlay). */
+/** Progress modal for the actions that advance the flow (see ActionOverlay). */
 export const actionOverlay = {
   pt: {
     successDefault: "Pronto!",

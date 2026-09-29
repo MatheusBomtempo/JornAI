@@ -3,22 +3,22 @@ import type { UserRole } from "./domain";
 
 type HasRole = { role: UserRole; id: string };
 
-/** Garante que o usuário tem um dos papéis; senão lança 403. */
+/** Makes sure the user has one of the roles; otherwise throws 403. */
 export function requireRole<T extends HasRole>(
   user: T,
   ...roles: UserRole[]
 ): T {
   if (!roles.includes(user.role)) {
     throw forbidden(
-      `Ação restrita aos papéis: ${roles.map(labelRole).join(", ")}.`,
+      `Action restricted to the roles: ${roles.map(labelRole).join(", ")}.`,
     );
   }
   return user;
 }
 
-// Permissões derivadas da tabela de papéis do SPEC.
+// Permissions derived from the roles table of the SPEC.
 export const can = {
-  /** Cria fontes/posts: todos os papéis autenticados. */
+  /** Creates sources/posts: every authenticated role. */
   createPost: (_u: HasRole) => true,
   /** Aprova/recusa/refaz/publica: manager e admin. */
   review: (u: HasRole) => u.role === "manager" || u.role === "admin",
@@ -26,14 +26,14 @@ export const can = {
   /** Edita style reference e templates: manager e admin. */
   editStyle: (u: HasRole) => u.role === "manager" || u.role === "admin",
   editTemplates: (u: HasRole) => u.role === "manager" || u.role === "admin",
-  /** Gerencia usuários e API keys: só admin. */
+  /** Manages users and API keys: admin only. */
   manageUsers: (u: HasRole) => u.role === "admin",
   manageApiKeys: (u: HasRole) => u.role === "admin",
 };
 
 /**
- * Staff (jornalista) só pode editar as próprias submissões antes da aprovação.
- * Manager/admin podem editar qualquer submissão.
+ * Staff (reporter) can only edit their own submissions before approval.
+ * Manager/admin can edit any submission.
  */
 export function canEditPost(
   user: HasRole,
@@ -44,11 +44,11 @@ export function canEditPost(
 }
 
 /**
- * Revisão por pares: manager/admin revisam (e publicam) qualquer post.
- * Staff pode revisar (aprovar/recusar/pedir reescrita) posts de OUTROS
- * jornalistas — nunca o próprio, senão a revisão por pares vira decoração.
- * Ver PEER_APPROVALS_NEEDED: uma aprovação de staff sozinha não publica,
- * precisa se somar a outra de um colega diferente (ou vir de manager/admin).
+ * Peer review: manager/admin review (and publish) any post. Staff can review
+ * (approve/reject/ask for a rewrite) posts by OTHER reporters — never their
+ * own, otherwise peer review becomes decoration. See PEER_APPROVALS_NEEDED: a
+ * staff approval alone does not publish, it must add up with one from a
+ * different peer (or come from a manager/admin).
  */
 export function canReviewPost(
   user: HasRole,

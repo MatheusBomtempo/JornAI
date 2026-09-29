@@ -5,8 +5,8 @@ import { getServerDictionary } from "@/lib/i18n/server";
 
 export const dynamic = "force-dynamic";
 
-// Todo papel entra aqui — AdminPanel decide as abas visíveis por role
-// (estilo/templates: todo mundo; usuários: manager+admin; API keys: só admin).
+// Every role gets in here — AdminPanel decides the visible tabs by role
+// (style/templates: everyone; users: manager+admin; API keys: admin only).
 export default async function AdminPage() {
   const user = await getCurrentUser();
   if (!user) return null;

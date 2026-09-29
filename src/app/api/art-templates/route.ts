@@ -5,7 +5,7 @@ import { artTemplateSchema } from "@/lib/validation";
 import { sortTemplatesByFormat } from "@/lib/domain";
 import { created, ok, route } from "@/lib/http";
 
-// GET /art-templates — templates disponíveis (por padrão só ativos), 4:5 primeiro
+// GET /art-templates — available templates (only active ones by default), 4:5 first
 export const GET = route(async (req: NextRequest) => {
   const user = await requireCompanyUser();
   const includeInactive = new URL(req.url).searchParams.get("all") === "1";

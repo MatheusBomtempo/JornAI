@@ -2,9 +2,9 @@ import "server-only";
 import * as cheerio from "cheerio";
 
 /**
- * Extrai título + texto principal de um link (source_type = 'link'),
- * para servir de fonte factual ao pipeline de IA. Heurística simples:
- * remove scripts/estilos/nav e concatena parágrafos.
+ * Extracts the title + main text of a link (source_type = 'link'), to serve
+ * as the factual source of the AI pipeline. Simple heuristic: removes
+ * scripts/styles/nav and concatenates paragraphs.
  */
 export async function scrapeUrl(url: string): Promise<{
   title: string;
@@ -19,7 +19,7 @@ export async function scrapeUrl(url: string): Promise<{
     redirect: "follow",
   });
   if (!res.ok) {
-    throw new Error(`Não foi possível acessar o link (HTTP ${res.status}).`);
+    throw new Error(`Could not access the link (HTTP ${res.status}).`);
   }
 
   const html = await res.text();
@@ -43,7 +43,7 @@ export async function scrapeUrl(url: string): Promise<{
     if (text.length > 40) paragraphs.push(text);
   });
 
-  // Dedup preservando ordem, e corta em ~10k chars.
+  // Dedup preserving order, and cut at ~10k chars.
   const seen = new Set<string>();
   const body = paragraphs
     .filter((p) => (seen.has(p) ? false : (seen.add(p), true)))
@@ -54,7 +54,7 @@ export async function scrapeUrl(url: string): Promise<{
 
   if (!content.trim()) {
     throw new Error(
-      "Não foi possível extrair texto do link (página vazia ou protegida).",
+      "Could not extract text from the link (empty or protected page).",
     );
   }
 

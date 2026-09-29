@@ -5,7 +5,7 @@ import { prisma } from "@/lib/db";
 import { createApiKeySchema } from "@/lib/validation";
 import { created, ok, route } from "@/lib/http";
 
-// GET /api-keys — admin lista chaves (sem expor o valor)
+// GET /api-keys — admin lists keys (without exposing the value)
 export const GET = route(async () => {
   const user = await requireCompanyUser();
   requireRole(user, "admin");
@@ -24,7 +24,7 @@ export const GET = route(async () => {
   return ok({ keys });
 });
 
-// POST /api-keys — admin cria chave; o valor em texto é retornado UMA vez
+// POST /api-keys — admin creates a key; the plain-text value is returned ONCE
 export const POST = route(async (req: NextRequest) => {
   const user = await requireCompanyUser();
   requireRole(user, "admin");
@@ -42,6 +42,6 @@ export const POST = route(async (req: NextRequest) => {
     select: { id: true, name: true, scopes: true, createdAt: true },
   });
 
-  // `plain` só aparece aqui — não é possível recuperá-lo depois.
+  // `plain` only shows up here — it cannot be recovered afterwards.
   return created({ key: { ...key, secret: plain } });
 });

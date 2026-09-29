@@ -1,18 +1,26 @@
 /**
- * Acesso centralizado e tipado às variáveis de ambiente.
- * Mantém defaults sensatos para o modo de desenvolvimento.
+ * Centralized, typed access to the environment variables.
+ * Keeps sensible defaults for development mode.
  */
+
+import { getContentLanguage } from "./language/config";
 
 function required(name: string, value: string | undefined): string {
   if (!value || value.length === 0) {
     throw new Error(
-      `Variável de ambiente obrigatória ausente: ${name}. Veja .env.example.`,
+      `Required environment variable is missing: ${name}. See .env.example.`,
     );
   }
   return value;
 }
 
 export const env = {
+  /**
+   * Language JornAI works in (APP_LANGUAGE): the language of the sources and
+   * of the generated posts. See src/lib/language.
+   */
+  language: () => getContentLanguage(),
+
   nodeEnv: process.env.NODE_ENV ?? "development",
   isProd: process.env.NODE_ENV === "production",
 
@@ -23,12 +31,12 @@ export const env = {
       "AUTH_SECRET",
       process.env.AUTH_SECRET ??
         (process.env.NODE_ENV !== "production"
-          ? "dev-secret-inseguro-troque-em-producao"
+          ? "insecure-dev-secret-change-in-production"
           : undefined),
     ),
   authSessionTtl: () => Number(process.env.AUTH_SESSION_TTL ?? 604800),
 
-  /** Autentica o Vercel Cron em /api/cron/*. Sem isso, o endpoint fica aberto. */
+  /** Authenticates Vercel Cron on /api/cron/*. Without it, the endpoint is open. */
   cronSecret: process.env.CRON_SECRET,
 
   ai: {
@@ -42,14 +50,14 @@ export const env = {
       process.env.OPENROUTER_BASE_URL ?? "https://openrouter.ai/api/v1",
     groqKey: process.env.GROQ_API_KEY,
     groqBaseUrl: process.env.GROQ_BASE_URL ?? "https://api.groq.com/openai/v1",
-    // Modelo do Groq usado na corrente de fallback (AI_PROVIDER=chain).
+    // Groq model used in the fallback chain (AI_PROVIDER=chain).
     groqModel: process.env.GROQ_MODEL ?? "openai/gpt-oss-20b",
     geminiKey: process.env.GEMINI_API_KEY,
     geminiBaseUrl:
       process.env.GEMINI_BASE_URL ??
       "https://generativelanguage.googleapis.com/v1beta/openai",
-    // Modelos do OpenRouter na corrente, em ordem de preferência (testados e
-    // confirmados a seguir o formato do prompt). Vírgula-separados no .env.
+    // OpenRouter models in the chain, in order of preference (tested and
+    // confirmed to follow the prompt format). Comma-separated in .env.
     openrouterModels: (
       process.env.OPENROUTER_MODELS ??
       "nex-agi/nex-n2.5-mini:free,nex-agi/nex-n2.5-pro:free,inclusionai/ling-3.0-flash-vl:free"
@@ -57,17 +65,17 @@ export const env = {
       .split(",")
       .map((m) => m.trim())
       .filter(Boolean),
-    // NVIDIA NIM — infraestrutura pronta, mas fora da corrente por padrão:
-    // testamos 9 modelos do catálogo com esta chave e nenhum se mostrou
-    // viável (a maioria dá 404 "not enabled for this account"; os que
-    // respondem são modelos de raciocínio lentos que não terminam a resposta
-    // dentro de um tempo razoável). Habilite mais modelos no painel da NVIDIA
-    // e ajuste NVIDIA_MODEL para reativar.
+    // NVIDIA NIM — plumbing is ready, but it is left out of the chain by
+    // default: we tested 9 catalog models with this key and none proved
+    // viable (most return 404 "not enabled for this account"; the ones that
+    // answer are slow reasoning models that do not finish the answer within a
+    // reasonable time). Enable more models in the NVIDIA dashboard and set
+    // NVIDIA_MODEL to turn it back on.
     nvidiaKey: process.env.NVIDIA_API_KEY,
     nvidiaBaseUrl:
       process.env.NVIDIA_BASE_URL ?? "https://integrate.api.nvidia.com/v1",
     nvidiaModel: process.env.NVIDIA_MODEL,
-    // OpenRouter usa estes cabeçalhos (opcionais) para atribuição.
+    // OpenRouter uses these (optional) headers for attribution.
     appUrl: process.env.PUBLIC_BASE_URL ?? "http://localhost:3000",
   },
 
@@ -85,10 +93,11 @@ export const env = {
     },
   },
 
-  // Busca de foto embutida no passo "Imagem" (ver ImageSuggestions em
-  // PostWorkspace) — deixa escolher uma foto de banco sem sair do site,
-  // ela já vem baixada e pronta pra virar a arte. Opcional: sem a chave,
-  // o botão cai de volta pra abrir a busca do Pexels numa aba nova.
+  // Built-in photo search in the "Image" step (see ImageSuggestions in
+  // PostWorkspace) — lets the reporter pick a stock photo without leaving the
+  // site; it arrives already downloaded and ready to become the art.
+  // Optional: without the key, the button falls back to opening the Pexels
+  // search in a new tab.
   photoSearch: {
     pexelsKey: process.env.PEXELS_API_KEY,
   },
@@ -99,12 +108,12 @@ export const env = {
     graphVersion: process.env.IG_GRAPH_VERSION ?? "v21.0",
   },
 
-  // Gmail SMTP: manda pra qualquer destinatário sem precisar de domínio
-  // verificado (diferente de um provedor transacional tipo Resend) — o
-  // Google já garante a autenticidade da própria conta. Trade-off: sai como
-  // remetente pessoal, sujeito ao limite/risco de sinalização do Gmail.
-  // GMAIL_APP_PASSWORD é gerada em myaccount.google.com/apppasswords
-  // (exige verificação em 2 etapas ativada na conta).
+  // Gmail SMTP: sends to any recipient without needing a verified domain
+  // (unlike a transactional provider such as Resend) — Google already vouches
+  // for the account itself. Trade-off: it goes out as a personal sender,
+  // subject to Gmail's limits and flagging risk.
+  // GMAIL_APP_PASSWORD is generated at myaccount.google.com/apppasswords
+  // (requires 2-step verification enabled on the account).
   email: {
     gmailUser: process.env.GMAIL_USER,
     gmailAppPassword: process.env.GMAIL_APP_PASSWORD,

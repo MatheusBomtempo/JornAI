@@ -1,31 +1,18 @@
-/**
- * Classifica o conteúdo (já markdownificado — ver markdownify.ts) em
- * "estruturado" (boletim de ocorrência, laudo, nota oficial — documentos com
- * campos rotulados) ou "genérico" (matéria de jornal, texto corrido).
- * Puramente por padrão de texto — nenhuma chamada de IA, o que torna essa
- * etapa gratuita e instantânea.
- */
+import { getLanguagePack } from "./language";
 
-const STRUCTURED_SIGNALS: RegExp[] = [
-  /boletim de ocorr[êe]ncia/i,
-  /\bnatureza\s*[:\-]/i,
-  /\bdata (?:do fato|da ocorr[êe]ncia|do registro)\s*[:\-]/i,
-  /\blocal(?: do fato| da ocorr[êe]ncia)?\s*[:\-]/i,
-  /\benvolvidos?\s*[:\-]/i,
-  /\bv[íi]tima(?:s)?\s*[:\-]/i,
-  /\bcomunicante\s*[:\-]/i,
-  /\brelato\s*[:\-]?/i,
-  /\bhist[óo]rico\s*[:\-]?/i,
-  /\bn[º°]\s*(?:de\s*)?(?:registro|ocorr[êe]ncia|bo)\b/i,
-  /\blaudo (?:pericial|m[ée]dico)/i,
-  /\bnota (?:oficial|[àa] imprensa)/i,
-];
+/**
+ * Classifies the content (already markdownified — see markdownify.ts) as
+ * "structured" (police report, expert report, official statement — documents
+ * with labelled fields) or "generic" (newspaper article, running text).
+ * Purely by text pattern — no AI call, which makes this step free and
+ * instant. The patterns are language-specific and live in the language pack.
+ */
 
 export type ContentKind = "structured" | "generic";
 
-/** 2+ sinais de campo rotulado = provavelmente um documento oficial. */
+/** 2+ labelled-field signals = probably an official document. */
 export function classifyContent(text: string): ContentKind {
-  const hits = STRUCTURED_SIGNALS.reduce(
+  const hits = getLanguagePack().document.structuredSignals.reduce(
     (n, re) => (re.test(text) ? n + 1 : n),
     0,
   );
@@ -33,33 +20,13 @@ export function classifyContent(text: string): ContentKind {
 }
 
 /**
- * "Rótulo: valor" no início de um parágrafo inteiro — mesma ideia de
- * LOOKS_LIKE_LABELED_LINE em markdownify.ts, mas aplicada ao parágrafo já
- * remontado (que pode ter várias frases depois do rótulo).
+ * "Label: value" at the start of a whole paragraph — same idea as
+ * LOOKS_LIKE_LABELED_LINE in markdownify.ts, but applied to the already
+ * reassembled paragraph (which can have several sentences after the label).
  */
-const LABELED_PARAGRAPH = /^([A-Za-zÀ-ÿ][\wÀ-ÿ ]{0,40})\s*[:\-]\s*(\S[\s\S]*)$/;
+const LABELED_PARAGRAPH = /^(\p{L}[\p{L}\p{N}_ ]{0,40})\s*[:\-]\s*(\S[\s\S]*)$/u;
 
-/** "Relato: ..." inline (não como cabeçalho de seção próprio). */
-const NARRATIVE_INLINE =
-  /^\s*(?:relato|hist[óo]rico|descri[çc][ãa]o dos fatos)\s*[:\-]\s*(.+)$/i;
-/** Cabeçalho de seção "## RELATO" — o parágrafo seguinte é o valor. */
-const NARRATIVE_HEADER =
-  /^##\s*(?:relato|hist[óo]rico|descri[çc][ãa]o dos fatos)\b/i;
-const DOC_TYPE_HEADER =
-  /(boletim de ocorr[êe]ncia|laudo pericial|nota (?:oficial|[àa] imprensa))/i;
-
-/** Rótulos conhecidos ganham um nome de exibição fixo; o resto usa o próprio
- * texto do rótulo como veio no documento (capturado em `labels`, ver baixo). */
-const FIELD_LABELS: Record<string, string> = {
-  tipo: "Tipo de documento",
-  natureza: "Natureza",
-  data: "Data",
-  local: "Local",
-  relato: "Relato",
-  dia_semana: "Dia da semana",
-};
-
-const FIELD_CAP: Record<string, number> = { relato: 1500 };
+const FIELD_CAP: Record<string, number> = { narrative: 1500 };
 const DEFAULT_CAP = 300;
 
 function clipField(key: string, value: string): string {
@@ -67,39 +34,42 @@ function clipField(key: string, value: string): string {
   return value.length > cap ? value.slice(0, cap) + "…" : value;
 }
 
-/** "natureza", "data do fato", "hora da comunicação" → "natureza", "data", "hora" */
-function normalizeKey(label: string): string {
+/** "nature", "date of incident", "report time" → "nature", "date", "report_time" */
+function normalizeKey(label: string, noise: RegExp): string {
   return label
     .toLowerCase()
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "")
-    .replace(/\b(do fato|da ocorrencia|do registro)\b/g, "")
+    .replace(noise, "")
     .trim()
     .replace(/\s+/g, "_");
 }
 
 /**
- * Extrai TODOS os campos rotulados do texto markdownificado, parágrafo por
- * parágrafo — não só uma lista fixa. Um boletim de ocorrência tem dezenas de
- * formatações diferentes ("Causa presumida:", "Vítimas:", "Veículos
- * envolvidos:" …); uma lista fixa de campos reconhecidos jogava fora
- * silenciosamente qualquer rótulo que não estivesse nela, deixando a IA sem
- * fatos reais pra escrever e forçando ela a "preencher" com generalidades
- * (esse foi o bug real que causou informação inventada num post).
+ * Extracts ALL labelled fields from the markdownified text, paragraph by
+ * paragraph — not just a fixed list. A police report has dozens of different
+ * layouts ("Presumed cause:", "Victims:", "Vehicles involved:" …); a fixed
+ * list of recognized fields silently threw away any label not on it, leaving
+ * the AI without real facts to write and forcing it to "fill in" with
+ * generalities (that was the real bug that caused invented information in a
+ * post).
  *
- * Heurística, não um parser garantido — mas ao capturar qualquer "Rótulo:
- * valor" em vez de só os que a gente antecipou, a chance de perder um fato
- * relevante cai bastante. O texto genérico (markdownificado) continua
- * servindo de rede de segurança em compact.ts pros casos fora do padrão.
+ * A heuristic, not a guaranteed parser — but by capturing any "Label: value"
+ * instead of only the ones we anticipated, the chance of losing a relevant
+ * fact drops a lot. The generic (markdownified) text keeps serving as a safety
+ * net in compact.ts for the cases outside the pattern.
  */
 export interface ExtractedFields {
   fields: Record<string, string>;
-  /** Rótulo original (como apareceu no documento) pros campos capturados
-   * genericamente — pros campos conhecidos, `fieldLabel()` já cobre. */
+  /**
+   * Original label (as it appeared in the document) for the fields captured
+   * generically — for the known fields, `fieldLabel()` already covers it.
+   */
   labels: Record<string, string>;
 }
 
 export function extractStructuredFields(markdownText: string): ExtractedFields {
+  const doc = getLanguagePack().document;
   const paragraphs = markdownText
     .split(/\n\s*\n+/)
     .map((p) => p.trim())
@@ -119,34 +89,34 @@ export function extractStructuredFields(markdownText: string): ExtractedFields {
 
     if (headerMatch) {
       const headerText = headerMatch[1];
-      if (!fields.relato && NARRATIVE_HEADER.test(p)) {
+      if (!fields.narrative && doc.narrativeHeader.test(p)) {
         const next = paragraphs[i + 1];
         if (next && !next.startsWith("##")) {
-          setField("relato", next);
+          setField("narrative", next);
         }
       }
-      if (!fields.tipo && DOC_TYPE_HEADER.test(headerText)) {
-        setField("tipo", headerText);
+      if (!fields.type && doc.docTypeHeader.test(headerText)) {
+        setField("type", headerText);
       }
       continue;
     }
 
-    if (!fields.relato) {
-      const m = p.match(NARRATIVE_INLINE);
+    if (!fields.narrative) {
+      const m = p.match(doc.narrativeInline);
       if (m?.[1]?.trim()) {
-        setField("relato", m[1].trim());
+        setField("narrative", m[1].trim());
         continue;
       }
     }
-    if (!fields.tipo && DOC_TYPE_HEADER.test(p)) {
-      const m = p.match(DOC_TYPE_HEADER);
-      if (m) setField("tipo", m[0]);
+    if (!fields.type && doc.docTypeHeader.test(p)) {
+      const m = p.match(doc.docTypeHeader);
+      if (m) setField("type", m[0]);
       continue;
     }
 
     const labeled = p.match(LABELED_PARAGRAPH);
     if (labeled) {
-      const key = normalizeKey(labeled[1]);
+      const key = normalizeKey(labeled[1], doc.labelNoise);
       if (key) setField(key, labeled[2].trim(), labeled[1].trim());
     }
   }
@@ -154,42 +124,25 @@ export function extractStructuredFields(markdownText: string): ExtractedFields {
   return { fields, labels };
 }
 
-const WEEKDAYS_PT = [
-  "domingo",
-  "segunda-feira",
-  "terça-feira",
-  "quarta-feira",
-  "quinta-feira",
-  "sexta-feira",
-  "sábado",
-];
-
 /**
- * Calcula o dia da semana de uma data em texto (ex.: "19/08/2026") de forma
- * determinística — nunca deixa a IA "calcular" ou adivinhar isso sozinha
- * (é um erro fácil de um modelo de linguagem cometer, e apareceu de verdade
- * num post: data certa, dia da semana errado).
+ * Computes the weekday of a date written in text (e.g. "19/08/2026")
+ * deterministically — never lets the AI "compute" or guess it (an easy
+ * mistake for a language model, and it really showed up in a post: right
+ * date, wrong weekday). Date formats and weekday names come from the
+ * language pack.
  */
-export function weekdayPtBr(dateStr: string): string | null {
-  const m = dateStr.match(/(\d{1,2})[/\-](\d{1,2})[/\-](\d{4})/);
-  if (!m) return null;
-  const [, d, mo, y] = m;
-  const date = new Date(Number(y), Number(mo) - 1, Number(d));
-  if (
-    date.getFullYear() !== Number(y) ||
-    date.getMonth() !== Number(mo) - 1 ||
-    date.getDate() !== Number(d)
-  ) {
-    return null;
-  }
-  return WEEKDAYS_PT[date.getDay()];
+export function weekdayOf(dateStr: string): string | null {
+  const pack = getLanguagePack();
+  const found = pack.findDates(dateStr)[0];
+  return found ? pack.weekdays[found.date.getDay()].name : null;
 }
 
 export function fieldLabel(key: string, labels?: Record<string, string>): string {
   const captured = labels?.[key];
   if (captured) return captured.charAt(0).toUpperCase() + captured.slice(1);
+  const known = getLanguagePack().document.fieldLabels as Record<string, string>;
   return (
-    FIELD_LABELS[key] ??
+    known[key] ??
     key
       .split("_")
       .map((w) => w.charAt(0).toUpperCase() + w.slice(1))

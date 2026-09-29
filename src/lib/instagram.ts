@@ -2,14 +2,14 @@ import "server-only";
 import { env } from "./env";
 
 /**
- * Cliente do Instagram Graph API (Meta) — publicação em 2 passos:
+ * Instagram Graph API (Meta) client — publishing in 2 steps:
  *   1. POST /{ig-user-id}/media        (image_url + caption) -> creation_id
- *   2. POST /{ig-user-id}/media_publish (creation_id)        -> media id publicado
+ *   2. POST /{ig-user-id}/media_publish (creation_id)        -> published media id
  *
- * Requisitos (SPEC.md): conta Instagram Business/Creator vinculada a uma Página
- * do Facebook, app no developers.facebook.com, conta como Instagram Tester.
- * Como só publica na própria conta, o app pode rodar em modo de desenvolvimento.
- * Permissão: instagram_business_content_publish.
+ * Requirements (SPEC.md): Instagram Business/Creator account linked to a
+ * Facebook Page, an app at developers.facebook.com, the account as an
+ * Instagram Tester. Since it only publishes to its own account, the app can
+ * run in development mode. Permission: instagram_business_content_publish.
  */
 
 export interface PublishResult {
@@ -27,13 +27,13 @@ function assertConfigured(): { userId: string; token: string } {
   const token = env.instagram.accessToken;
   if (!userId || !token) {
     throw new Error(
-      "Instagram não configurado: defina IG_USER_ID e IG_ACCESS_TOKEN.",
+      "Instagram is not configured: set IG_USER_ID and IG_ACCESS_TOKEN.",
     );
   }
   return { userId, token };
 }
 
-/** Passo 1: cria o container de mídia. */
+/** Step 1: creates the media container. */
 export async function createMediaContainer(
   imageUrl: string,
   caption: string,
@@ -50,16 +50,16 @@ export async function createMediaContainer(
   });
   const data = await res.json();
   if (!res.ok || !data.id) {
-    throw new Error(igError("criar container de mídia", data));
+    throw new Error(igError("create the media container", data));
   }
   return data.id as string;
 }
 
 /**
- * Passo 2: publica o container. O Meta às vezes ainda não terminou de
- * processar o container quando o publish chega (inclusive de FOTO) e responde
- * "Media ID is not available" (code 9007) — é transitório, então tenta de novo
- * algumas vezes antes de desistir.
+ * Step 2: publishes the container. Meta sometimes has not finished processing
+ * the container when the publish arrives (PHOTOS included) and answers "Media
+ * ID is not available" (code 9007) — it is transient, so it retries a few
+ * times before giving up.
  */
 export async function publishMediaContainer(
   creationId: string,
@@ -78,7 +78,7 @@ export async function publishMediaContainer(
       await sleep(2000 + attempt * 1000);
       continue;
     }
-    throw new Error(igError("publicar mídia", data));
+    throw new Error(igError("publish the media", data));
   }
 }
 
@@ -101,35 +101,35 @@ export async function fetchPermalink(mediaId: string): Promise<string | undefine
   }
 }
 
-/** Fluxo completo de publicação (container + publish + permalink). */
+/** Full publishing flow (container + publish + permalink). */
 export async function publishToInstagram(
   imageUrl: string,
   caption: string,
 ): Promise<PublishResult> {
   const { token } = assertConfigured();
   const creationId = await createMediaContainer(imageUrl, caption);
-  // Foto normalmente fica pronta em 1-2s, mas não é instantânea: publicar
-  // antes disso dá "Media ID is not available".
-  await waitForContainerReady(creationId, token, "imagem");
+  // A photo is usually ready in 1-2s, but not instantly: publishing before
+  // that gives "Media ID is not available".
+  await waitForContainerReady(creationId, token, "image");
   const mediaId = await publishMediaContainer(creationId);
   const permalink = await fetchPermalink(mediaId);
   return { creationId, mediaId, permalink };
 }
 
-// ── Vídeo (Reels) ────────────────────────────────────────────
+// ── Video (Reels) ────────────────────────────────────────────
 /**
- * Publicação de vídeo é assíncrona do lado do Meta: cria o container
- * (media_type=REELS + video_url), espera o processamento (status_code vai
- * de IN_PROGRESS pra FINISHED — pode levar dezenas de segundos a alguns
- * minutos dependendo do tamanho), só então publica. Diferente da foto, que
- * fica pronta na hora.
+ * Video publishing is asynchronous on Meta's side: it creates the container
+ * (media_type=REELS + video_url), waits for processing (status_code goes from
+ * IN_PROGRESS to FINISHED — it can take tens of seconds to a few minutes
+ * depending on the size), and only then publishes. Unlike a photo, which is
+ * ready right away.
  */
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-/** Passo 1 (vídeo): cria o container de mídia como Reels. */
+/** Step 1 (video): creates the media container as Reels. */
 export async function createVideoMediaContainer(
   videoUrl: string,
   caption: string,
@@ -147,47 +147,47 @@ export async function createVideoMediaContainer(
   });
   const data = await res.json();
   if (!res.ok || !data.id) {
-    throw new Error(igError("criar container de vídeo", data));
+    throw new Error(igError("create the video container", data));
   }
   return data.id as string;
 }
 
-/** Espera o Meta terminar de baixar/processar o container antes de publicar. */
+/** Waits for Meta to finish downloading/processing the container before publishing. */
 async function waitForContainerReady(
   creationId: string,
   token: string,
-  kind: "imagem" | "vídeo",
+  kind: "image" | "video",
 ): Promise<void> {
-  const isVideo = kind === "vídeo";
-  const what = isVideo ? "o vídeo" : "a imagem";
+  const isVideo = kind === "video";
+  const what = isVideo ? "the video" : "the image";
   const maxAttempts = isVideo ? 40 : 15;
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const res = await fetch(
       `${baseUrl()}/${creationId}?fields=status_code&access_token=${token}`,
     );
     const data = await res.json();
-    if (!res.ok) throw new Error(igError(`consultar status d${what}`, data));
-    // Sem status_code na resposta (algumas contas/versões não retornam pra
-    // foto): segue pro publish, que tem retry próprio.
+    if (!res.ok) throw new Error(igError(`check the status of ${what}`, data));
+    // No status_code in the response (some accounts/versions do not return it
+    // for photos): move on to the publish, which has its own retry.
     if (data.status_code === "FINISHED" || data.status_code === undefined) return;
     if (data.status_code === "ERROR" || data.status_code === "EXPIRED") {
       throw new Error(
-        `O Instagram não conseguiu processar ${what} (status: ${data.status_code}).`,
+        `Instagram could not process ${what} (status: ${data.status_code}).`,
       );
     }
     await sleep(isVideo ? Math.min(3000 + attempt * 500, 8000) : 1000);
   }
-  throw new Error(`Tempo esgotado esperando o Instagram processar ${what}.`);
+  throw new Error(`Timed out waiting for Instagram to process ${what}.`);
 }
 
-/** Fluxo completo de publicação de vídeo (container + espera + publish + permalink). */
+/** Full video publishing flow (container + wait + publish + permalink). */
 export async function publishVideoToInstagram(
   videoUrl: string,
   caption: string,
 ): Promise<PublishResult> {
   const { token } = assertConfigured();
   const creationId = await createVideoMediaContainer(videoUrl, caption);
-  await waitForContainerReady(creationId, token, "vídeo");
+  await waitForContainerReady(creationId, token, "video");
   const mediaId = await publishMediaContainer(creationId);
   const permalink = await fetchPermalink(mediaId);
   return { creationId, mediaId, permalink };
@@ -195,5 +195,5 @@ export async function publishVideoToInstagram(
 
 function igError(action: string, data: unknown): string {
   const err = (data as { error?: { message?: string } })?.error;
-  return `Erro ao ${action} no Instagram: ${err?.message ?? JSON.stringify(data)}`;
+  return `Error trying to ${action} on Instagram: ${err?.message ?? JSON.stringify(data)}`;
 }

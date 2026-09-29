@@ -11,18 +11,18 @@ interface Props {
 const EMPTY = "";
 
 /**
- * Créditos/marcações do post. Começa com um único seletor "nenhum";
- * o campo do @ só aparece depois que um tipo é escolhido. Preenchido um,
- * surge o "+" para adicionar outro. Tudo opcional.
+ * Post credits/tags. Starts with a single "none" selector; the @ field only
+ * appears after a type is chosen. Once one is filled in, a "+" shows up to add
+ * another. Everything optional.
  */
 export function CreditsInput({ credits, onChange }: Props) {
   const { dict } = useLocale();
-  // Linha em edição: sempre existe uma "vazia" no fim para começar a primeira.
+  // Row being edited: there is always an "empty" one at the end to start the first.
   const rows: (Credit | null)[] = [...credits, null];
 
   function setType(index: number, type: string) {
     if (!type) {
-      // voltou para "nenhum" -> remove a linha
+      // went back to "none" -> removes the row
       onChange(credits.filter((_, i) => i !== index));
       return;
     }
@@ -51,7 +51,7 @@ export function CreditsInput({ credits, onChange }: Props) {
     <div className="space-y-3">
       {rows.map((credit, i) => {
         const isNew = credit === null;
-        // A linha "nova" só aparece se a anterior já tiver um @ preenchido
+        // The "new" row only shows up if the previous one already has an @ filled in
         if (isNew && credits.length > 0 && !credits[credits.length - 1].handle.trim()) {
           return null;
         }
@@ -59,7 +59,7 @@ export function CreditsInput({ credits, onChange }: Props) {
         return (
           <div key={i} className="space-y-2">
             {isNew && credits.length > 0 ? (
-              // Botão "+" para adicionar outro crédito
+              // "+" button to add another credit
               <details className="group">
                 <summary className="btn-ghost w-full cursor-pointer list-none">
                   {dict.creditsInput.addAnother}
@@ -76,7 +76,7 @@ export function CreditsInput({ credits, onChange }: Props) {
                   className="sm:w-56"
                 />
 
-                {/* O @ só abre depois de escolher o tipo */}
+                {/* The @ only opens after picking the type */}
                 {credit && (
                   <div className="flex flex-1 gap-2">
                     <input

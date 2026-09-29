@@ -1,8 +1,8 @@
-// Teste manual da integração com Instagram, sem publicar nada (por padrão).
-// Uso:
-//   node --env-file=.env.local scripts/test-instagram.mjs                # só valida token + IG_USER_ID
-//   node --env-file=.env.local scripts/test-instagram.mjs --container    # também cria um container de teste (não publica)
-//   node --env-file=.env.local scripts/test-instagram.mjs --publish      # cria E publica de verdade (aparece no perfil!)
+// Manual test of the Instagram integration, without publishing anything (by default).
+// Usage:
+//   node --env-file=.env.local scripts/test-instagram.mjs                # only validates the token + IG_USER_ID
+//   node --env-file=.env.local scripts/test-instagram.mjs --container    # also creates a test container (does not publish)
+//   node --env-file=.env.local scripts/test-instagram.mjs --publish      # creates AND really publishes (shows up on the profile!)
 
 const userId = process.env.IG_USER_ID;
 const token = process.env.IG_ACCESS_TOKEN;
@@ -13,8 +13,8 @@ if (!userId || !token) {
   process.exit(1);
 }
 
-// Conta criada via "API setup with Instagram login" usa o host graph.instagram.com,
-// não graph.facebook.com (que é o host da integração antiga via Página do Facebook).
+// An account created via "API setup with Instagram login" uses the graph.instagram.com host,
+// not graph.facebook.com (which is the host of the old integration via a Facebook Page).
 const base = `https://graph.instagram.com/${version}`;
 const testImageUrl = "https://images.pexels.com/photos/1108099/pexels-photo-1108099.jpeg";
 
@@ -32,7 +32,7 @@ async function createContainer() {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       image_url: testImageUrl,
-      caption: "teste JornAI (não publicado)",
+      caption: "JornAI test (not published)",
       access_token: token,
     }),
   });
@@ -55,17 +55,17 @@ async function publishContainer(creationId) {
 
 const ok = await checkAccount();
 if (!ok) {
-  console.error("\nToken/ID inválidos para graph.instagram.com. Se você configurou via Página do Facebook (fluxo antigo), tente trocar o host pra graph.facebook.com no script.");
+  console.error("\nInvalid token/ID for graph.instagram.com. If you set it up via a Facebook Page (old flow), try switching the host to graph.facebook.com in the script.");
   process.exit(1);
 }
 
 if (process.argv.includes("--container") || process.argv.includes("--publish")) {
   const creationId = await createContainer();
   if (creationId && process.argv.includes("--publish")) {
-    console.log("\nPublicando de verdade em 3s... (Ctrl+C pra cancelar)");
+    console.log("\nPublishing for real in 3s... (Ctrl+C to cancel)");
     await new Promise((r) => setTimeout(r, 3000));
     await publishContainer(creationId);
   } else if (creationId) {
-    console.log("\nContainer criado e NÃO publicado — expira sozinho em ~24h, nada aparece no perfil.");
+    console.log("\nContainer created and NOT published — it expires by itself in ~24h, nothing shows up on the profile.");
   }
 }

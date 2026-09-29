@@ -1,8 +1,8 @@
 import { PrismaClient } from "@prisma/client";
 
 /**
- * Instância única do Prisma reutilizada entre hot-reloads em dev,
- * evitando esgotar o pool de conexões do PostgreSQL.
+ * Single Prisma instance reused across hot reloads in dev, avoiding
+ * exhausting the PostgreSQL connection pool.
  */
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;

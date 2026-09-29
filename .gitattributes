@@ -1,7 +1,7 @@
-# Normaliza quebras de linha: LF no repositório para todos os arquivos de texto.
+# Normalizes line endings: LF in the repository for every text file.
 * text=auto eol=lf
 
-# Binários (não normalizar)
+# Binaries (do not normalize)
 *.png binary
 *.jpg binary
 *.jpeg binary

@@ -7,13 +7,13 @@ import { compressSourcePhoto } from "@/lib/media";
 import { putObject } from "@/lib/storage";
 import { badRequest, created, route } from "@/lib/http";
 
-const MAX_DOWNLOAD_BYTES = 25 * 1024 * 1024; // o "original" do Pexels pode ser grande; recomprimimos depois
+const MAX_DOWNLOAD_BYTES = 25 * 1024 * 1024; // the Pexels "original" can be big; we recompress afterwards
 
-// POST /photo-search/import — baixa, do lado do servidor, a foto escolhida
-// no picker do Pexels e devolve a URL já no nosso storage (mesmo formato do
-// /api/upload), pra anexar ao post com o POST /posts/:id/photos de sempre.
-// Não é um proxy genérico: assertPexelsDownloadUrl trava o host em
-// *.pexels.com (a URL vem do cliente, então isso evita SSRF).
+// POST /photo-search/import — downloads, on the server side, the photo chosen
+// in the Pexels picker and returns the URL already in our storage (same shape
+// as /api/upload), to attach to the post with the usual POST /posts/:id/photos.
+// It is not a generic proxy: assertPexelsDownloadUrl locks the host to
+// *.pexels.com (the URL comes from the client, so this prevents SSRF).
 export const POST = route(async (req: NextRequest) => {
   await requireUser();
   const { downloadUrl } = importPexelsPhotoSchema.parse(await req.json());
@@ -26,20 +26,20 @@ export const POST = route(async (req: NextRequest) => {
     res = await fetch(url, { signal: controller.signal });
   } catch (err) {
     const why = (err as Error).name === "AbortError" ? "tempo esgotado" : (err as Error).message;
-    throw badRequest(`Não foi possível baixar a foto do Pexels (${why}).`);
+    throw badRequest(`Could not download the photo from Pexels (${why}).`);
   } finally {
     clearTimeout(timeout);
   }
-  if (!res.ok) throw badRequest(`Pexels recusou o download (HTTP ${res.status}).`);
+  if (!res.ok) throw badRequest(`Pexels refused the download (HTTP ${res.status}).`);
 
   const contentType = res.headers.get("content-type") ?? "";
   if (!contentType.startsWith("image/")) {
-    throw badRequest("O link do Pexels não retornou uma imagem.");
+    throw badRequest("The Pexels link did not return an image.");
   }
 
   const raw = Buffer.from(await res.arrayBuffer());
   if (raw.byteLength > MAX_DOWNLOAD_BYTES) {
-    throw badRequest("Imagem do Pexels maior do que o esperado.");
+    throw badRequest("The Pexels image is larger than expected.");
   }
 
   const buffer = await compressSourcePhoto(raw);

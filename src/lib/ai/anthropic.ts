@@ -1,10 +1,10 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { env } from "../env";
-import { buildUserPrompt, SYSTEM_PROMPT } from "./prompt";
+import { buildUserPrompt, buildSystemPrompt } from "./prompt";
 import { parseGeneratedContent } from "./parse";
 import type { AiProvider, GenerateInput, GeneratedContent } from "./types";
 
-/** Provider de texto usando a API da Anthropic (Claude). */
+/** Text provider backed by the Anthropic API (Claude). */
 export class AnthropicProvider implements AiProvider {
   readonly name = "anthropic";
   private client: Anthropic;
@@ -12,7 +12,7 @@ export class AnthropicProvider implements AiProvider {
   constructor() {
     if (!env.ai.anthropicKey) {
       throw new Error(
-        "ANTHROPIC_API_KEY ausente. Configure ou use AI_PROVIDER=mock em dev.",
+        "ANTHROPIC_API_KEY is missing. Set it or use AI_PROVIDER=mock in development.",
       );
     }
     this.client = new Anthropic({ apiKey: env.ai.anthropicKey });
@@ -21,10 +21,10 @@ export class AnthropicProvider implements AiProvider {
   async generate(input: GenerateInput): Promise<GeneratedContent> {
     const msg = await this.client.messages.create({
       model: env.ai.model,
-      // Legendas de 3-5 parágrafos + créditos + hashtags podem passar de
-      // 1024 tokens e cortar no meio da frase — dá folga.
+      // A 3-5 paragraph caption plus credits and hashtags can exceed 1024
+      // tokens and get cut mid-sentence — leave some headroom.
       max_tokens: 1600,
-      system: SYSTEM_PROMPT,
+      system: buildSystemPrompt(),
       messages: [{ role: "user", content: buildUserPrompt(input) }],
     });
 

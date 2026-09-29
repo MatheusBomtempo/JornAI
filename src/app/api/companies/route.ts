@@ -5,16 +5,17 @@ import { createCompanySchema, updateCompanySchema } from "@/lib/validation";
 import { createCompanyForUser, getCompany, updateCompany } from "@/lib/services/company";
 import { created, ok, route } from "@/lib/http";
 
-// GET /companies — dados da empresa do usuário logado (Admin → Empresa).
+// GET /companies — data of the logged-in user's company (Admin → Company).
 export const GET = route(async () => {
   const user = await requireCompanyUser();
   const company = await getCompany(user.companyId);
   return ok({ company });
 });
 
-// POST /companies — onboarding: admin sem empresa cadastra a dele. Reemite o
-// cookie de sessão com o companyId novo, senão o middleware manda a pessoa
-// de volta pro onboarding no próximo request (o JWT antigo não tinha essa claim).
+// POST /companies — onboarding: an admin with no company registers theirs.
+// Re-issues the session cookie with the new companyId, otherwise the middleware
+// sends the person back to onboarding on the next request (the old JWT did not
+// have this claim).
 export const POST = route(async (req: NextRequest) => {
   const user = await requireUser();
   requireRole(user, "admin");
@@ -26,7 +27,7 @@ export const POST = route(async (req: NextRequest) => {
   return created({ company });
 });
 
-// PATCH /companies — admin edita nome/logo/@ da própria empresa.
+// PATCH /companies — admin edits the name/logo/handle of their own company.
 export const PATCH = route(async (req: NextRequest) => {
   const user = await requireCompanyUser();
   requireRole(user, "admin");

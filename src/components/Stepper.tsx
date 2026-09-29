@@ -2,17 +2,17 @@
 
 interface Props {
   steps: string[];
-  /** Índice (0-based) do passo atual. */
+  /** Index (0-based) of the current step. */
   current: number;
-  /** Índice mais alto que já pode ser aberto clicando no chip. */
+  /** Highest index that can already be opened by clicking on the chip. */
   reachable?: number;
   onStepClick?: (index: number) => void;
 }
 
 /**
- * Indicador visual de progresso em 3 passos — pensado pra mobile primeiro:
- * chips grandes o bastante pro toque, rótulo sempre visível (nunca só o
- * número), e clicáveis quando o passo já pode ser revisitado.
+ * Visual progress indicator in 3 steps — designed mobile-first: chips big
+ * enough for touch, label always visible (never just the number), and
+ * clickable when the step can already be revisited.
  */
 export function Stepper({ steps, current, reachable = current, onStepClick }: Props) {
   return (

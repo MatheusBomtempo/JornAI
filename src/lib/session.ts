@@ -3,8 +3,9 @@ import { env } from "./env";
 import type { UserRole } from "./domain";
 
 /**
- * Assinatura/verificação de JWT de sessão usando `jose` — compatível com o
- * Edge Runtime (usado no middleware). NÃO importa bcrypt/Prisma de propósito.
+ * Signing/verification of the session JWT using `jose` — compatible with the
+ * Edge Runtime (used in the middleware). It does NOT import bcrypt/Prisma, on
+ * purpose.
  */
 
 export const SESSION_COOKIE = "jornai_session";
@@ -14,7 +15,7 @@ export interface SessionPayload extends JWTPayload {
   name: string;
   email: string;
   role: UserRole;
-  /** Nulo até o onboarding (ver /onboarding) — middleware usa isso pra redirecionar. */
+  /** Null until onboarding (see /onboarding) — the middleware uses it to redirect. */
   companyId: string | null;
 }
 

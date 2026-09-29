@@ -6,13 +6,13 @@ import { useLocale } from "./LocaleProvider";
 interface Props {
   /** Texto explicativo. */
   text: string;
-  /** Onde o campo aparece no produto final (opcional, destacado). */
+  /** Where the field shows up in the final product (optional, highlighted). */
   where?: string;
 }
 
 /**
- * Ícone "?" que revela uma explicação. Funciona no hover (desktop) e
- * no toque (mobile) — por isso é clique + hover, não só hover.
+ * "?" icon that reveals an explanation. Works on hover (desktop) and on touch
+ * (mobile) — hence click + hover, not just hover.
  */
 export function Tooltip({ text, where }: Props) {
   const { dict } = useLocale();
@@ -47,7 +47,7 @@ export function Tooltip({ text, where }: Props) {
         ?
       </button>
 
-      {/* Aberto por clique (mobile) ou por hover (desktop) */}
+      {/* Opened by click (mobile) or by hover (desktop) */}
       <span
         role="tooltip"
         className={`absolute left-0 top-7 z-40 w-64 max-w-[calc(100vw-2.5rem)] animate-fade-in

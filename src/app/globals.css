@@ -43,7 +43,7 @@ body {
 }
 
 @layer components {
-  /* ── Botões (alvos de toque >= 44px em mobile) ───────────── */
+  /* ── Buttons (touch targets >= 44px on mobile) ──────────── */
   .btn {
     @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold
            transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-45
@@ -68,7 +68,7 @@ body {
     @apply min-h-9 rounded-lg px-3 text-xs;
   }
 
-  /* ── Ações rápidas no card do feed (aprovar/recusar no hover) ── */
+  /* ── Quick actions on the feed card (approve/reject on hover) ── */
   .quick-action-btn {
     @apply inline-flex h-8 items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 text-xs font-semibold
            text-white backdrop-blur-md transition-all duration-200 ease-out
@@ -86,7 +86,7 @@ body {
            hover:shadow-[0_0_16px_2px_rgba(239,68,68,0.55)];
   }
 
-  /* ── Superfícies ─────────────────────────────────────────── */
+  /* ── Surfaces ────────────────────────────────────────────── */
   .card {
     @apply rounded-2xl border border-line bg-surface shadow-soft;
   }
@@ -94,7 +94,7 @@ body {
     @apply rounded-xl border border-lineSoft bg-elevated;
   }
 
-  /* ── Formulário ──────────────────────────────────────────── */
+  /* ── Form ────────────────────────────────────────────────── */
   .input {
     @apply w-full rounded-xl border border-line bg-elevated px-3.5 py-3 text-base text-ink
            placeholder:text-faint outline-none transition
@@ -123,7 +123,7 @@ body {
   }
 }
 
-/* Impede zoom automático do iOS ao focar campos */
+/* Prevents the automatic iOS zoom when focusing fields */
 @media (max-width: 767px) {
   input,
   textarea,

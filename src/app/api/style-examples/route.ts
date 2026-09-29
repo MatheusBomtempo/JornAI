@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db";
 import { styleExampleSchema } from "@/lib/validation";
 import { created, ok, route } from "@/lib/http";
 
-// GET /style-examples — exemplos reais do jornal usados como referência pela IA
+// GET /style-examples — real examples from the newspaper, used by the AI as a reference
 export const GET = route(async () => {
   const user = await requireCompanyUser();
   const examples = await prisma.styleExample.findMany({

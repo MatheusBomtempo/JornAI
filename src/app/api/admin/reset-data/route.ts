@@ -5,14 +5,14 @@ import { resetDataSchema } from "@/lib/validation";
 import { resetCompanyData } from "@/lib/services/data-reset";
 import { ok, route } from "@/lib/http";
 
-// Apaga arquivo por arquivo no storage antes das linhas do banco — com
-// muitos posts/vídeos pode levar mais que o padrão.
+// Deletes file by file in storage before the database rows — with many
+// posts/videos it can take longer than the default.
 export const maxDuration = 120;
 
-// POST /admin/reset-data — só admin, só dados da própria empresa, e só com a
-// palavra de confirmação no corpo (ver resetDataSchema): uma chamada
-// acidental à API não apaga nada. Usuários e configuração ficam intactos
-// (ver services/data-reset.ts).
+// POST /admin/reset-data — admin only, only the data of their own company, and
+// only with the confirmation word in the body (see resetDataSchema): an
+// accidental call to the API deletes nothing. Users and configuration stay
+// intact (see services/data-reset.ts).
 export const POST = route(async (req: NextRequest) => {
   const user = await requireCompanyUser();
   requireRole(user, "admin");

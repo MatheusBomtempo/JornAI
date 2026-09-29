@@ -6,11 +6,11 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  // Evita que o Next infira a raiz errada quando há outro lockfile acima.
+  // Prevents Next from inferring the wrong root when there is another lockfile above.
   outputFileTracingRoot: __dirname,
-  // Sharp faz o render final da arte; unpdf (pdf.js) extrai texto de PDF;
-  // fluent-ffmpeg + @ffmpeg-installer/ffmpeg renderizam o vídeo com o texto
-  // animado. Todos rodam só no servidor e não devem ser empacotados.
+  // Sharp does the final art render; unpdf (pdf.js) extracts text from PDFs;
+  // fluent-ffmpeg + @ffmpeg-installer/ffmpeg render the video with the animated
+  // text. All of them run only on the server and must not be bundled.
   serverExternalPackages: [
     "sharp",
     "unpdf",
@@ -19,18 +19,18 @@ const nextConfig = {
     "@ffmpeg-installer/ffmpeg",
     "@ffprobe-installer/ffprobe",
   ],
-  // render/text.ts lê os .woff da Poppins via fs.readFile com caminho montado
-  // em runtime (não é um import/require literal) — o tracer do Next não
-  // detecta esse acesso sozinho e deixava a fonte de fora do bundle da
-  // função serverless (funcionava local, quebrava só na Vercel). Mesmo
-  // problema com o binário do ffmpeg (resolvido em runtime pelo installer).
+  // render/text.ts reads the Poppins .woff files via fs.readFile with a path
+  // built at runtime (not a literal import/require) — Next's tracer does not
+  // detect that access by itself and left the font out of the serverless
+  // function bundle (it worked locally, broke only on Vercel). Same problem
+  // with the ffmpeg binary (resolved at runtime by the installer).
   //
-  // "/**/*" (não só "/api/**/*"): services/posts.ts importa render/video.ts
-  // no topo do arquivo, e páginas normais (ex.: /dashboard, /posts/[id])
-  // importam services/posts.ts pra listar/carregar posts — então o require
-  // do @ffprobe-installer/ffprobe também entra no bundle DESSAS páginas, não
-  // só das rotas /api. Escopo só em /api deixava o /dashboard quebrado em
-  // produção com "Cannot find module '@ffprobe-installer/linux-x64/ffprobe'".
+  // "/**/*" (not just "/api/**/*"): services/posts.ts imports render/video.ts
+  // at the top of the file, and regular pages (e.g. /dashboard, /posts/[id])
+  // import services/posts.ts to list/load posts — so the require of
+  // @ffprobe-installer/ffprobe also lands in the bundle of THOSE pages, not
+  // only of the /api routes. Scoping to /api alone left /dashboard broken in
+  // production with "Cannot find module '@ffprobe-installer/linux-x64/ffprobe'".
   outputFileTracingIncludes: {
     "/**/*": [
       "./node_modules/@fontsource/poppins/files/**",

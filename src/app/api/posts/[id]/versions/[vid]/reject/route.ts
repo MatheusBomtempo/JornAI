@@ -4,7 +4,7 @@ import { rejectSchema } from "@/lib/validation";
 import { rejectPost } from "@/lib/services/posts";
 import { ok, route } from "@/lib/http";
 
-// POST /posts/:id/versions/:vid/reject — recusa com motivo obrigatório
+// POST /posts/:id/versions/:vid/reject — rejects with a mandatory reason
 export const POST = route(
   async (
     req: NextRequest,

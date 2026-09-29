@@ -14,68 +14,68 @@ import { usePathname } from "next/navigation";
 import { Spinner, useElapsedSeconds } from "./Spinner";
 import { useLocale } from "./LocaleProvider";
 
-/** Sucesso fica na tela este tempo antes de fechar sozinho. */
+/** Success stays on screen this long before closing by itself. */
 const SUCCESS_AUTO_CLOSE_MS = 1800;
-/** A partir daqui avisa que está demorando mais que o normal. */
+/** From here on it warns that it is taking longer than normal. */
 const SLOW_AFTER_SECONDS = 8;
 
 type Status = "loading" | "success" | "error";
 
 interface LogEntry {
   id: number;
-  /** ms desde o início desta tentativa. */
+  /** ms since the start of this attempt. */
   at: number;
   text: string;
 }
 
 interface OverlayState {
   status: Status;
-  /** O que está sendo feito — "Gerando o texto com IA…". */
+  /** What is being done — "Generating the text with AI…". */
   title: string;
   attempt: number;
   log: LogEntry[];
-  /** Mensagem de sucesso; null usa o padrão do dicionário. */
+  /** Success message; null uses the dictionary default. */
   successMessage: string | null;
-  /** Se 0, não fecha sozinho — espera navegação ou toque. */
+  /** If 0, it does not close by itself — waits for navigation or a tap. */
   successDelayMs: number;
   error: string | null;
-  /** ms desde o início até terminar (sucesso ou erro) — timestamp da última linha do log. */
+  /** ms from the start until it finished (success or error) — timestamp of the last log line. */
   finishedAt: number | null;
-  /** Barra de progresso (upload): fração 0–1 e um detalhe tipo "12,4 MB de 48 MB". */
+  /** Progress bar (upload): fraction 0–1 and a detail such as "12.4 MB of 48 MB". */
   progress: { ratio: number; detail: string | null } | null;
-  /** A partir de quantos segundos mostra o aviso de "demorando mais que o normal". */
+  /** After how many seconds it shows the "taking longer than normal" warning. */
   slowAfterSeconds: number;
 }
 
 export interface RunContext {
-  /** Registra um passo intermediário no log ("Vídeo no servidor — gerando a prévia…"). */
+  /** Records an intermediate step in the log ("Video on the server — generating the preview…"). */
   log: (text: string) => void;
   /**
-   * Mostra/atualiza a barra de progresso (fração 0–1) com um detalhe
-   * opcional; `null` esconde a barra (ex.: upload acabou, servidor processando).
+   * Shows/updates the progress bar (fraction 0–1) with an optional detail;
+   * `null` hides the bar (e.g. upload finished, server processing).
    */
   progress: (ratio: number | null, detail?: string) => void;
 }
 
 export interface RunOptions<T> {
-  /** Título mostrado enquanto roda. Vira a 1ª linha do log. */
+  /** Title shown while it runs. Becomes the 1st line of the log. */
   title: string;
-  /** Mensagem quando dá certo. Sem ela, "Pronto!". */
+  /** Message when it works. Without it, "Done!". */
   success?: string;
   /**
-   * Tempo que o sucesso fica na tela antes de fechar sozinho. 0 = não fecha
-   * por tempo (fecha quando a rota muda ou a pessoa toca) — útil quando a
-   * ação termina navegando pra outra página.
+   * How long the success stays on screen before closing by itself. 0 = does
+   * not close by time (closes when the route changes or the person taps) —
+   * useful when the action ends by navigating to another page.
    */
   successDelayMs?: number;
   /**
-   * Quando avisar que está demorando. Padrão SLOW_AFTER_SECONDS (8s) serve
-   * pra texto/arte; render de vídeo leva dezenas de segundos normalmente e,
-   * com o padrão, dizia "demorando mais que o normal — ainda estamos
-   * tentando" no meio de um render saudável.
+   * When to warn that it is taking long. Default SLOW_AFTER_SECONDS (8s) suits
+   * text/art; a video render normally takes tens of seconds and, with the
+   * default, it said "taking longer than normal — we are still trying" in the
+   * middle of a healthy render.
    */
   slowAfterSeconds?: number;
-  /** A ação em si. Recebe `log`/`progress` pra detalhar o andamento. */
+  /** The action itself. Receives `log`/`progress` to detail the progress. */
   fn: (ctx: RunContext) => Promise<T>;
 }
 
@@ -83,12 +83,12 @@ export type RunResult<T> = { ok: true; value: T } | { ok: false };
 
 interface ActionOverlayContextValue {
   /**
-   * Roda a ação mostrando o modal. Só resolve quando termina de verdade:
-   * `{ ok: true }` no sucesso (inclusive depois de "Tentar de novo") ou
-   * `{ ok: false }` se a pessoa fechou o erro sem tentar de novo.
+   * Runs the action showing the modal. Only resolves when it really finishes:
+   * `{ ok: true }` on success (including after "Try again") or `{ ok: false }`
+   * if the person closed the error without trying again.
    */
   run: <T>(opts: RunOptions<T>) => Promise<RunResult<T>>;
-  /** Fecha o modal na hora (só fora do loading). */
+  /** Closes the modal right away (only outside loading). */
   close: () => void;
 }
 
@@ -97,22 +97,22 @@ const ActionOverlayContext = createContext<ActionOverlayContextValue | null>(nul
 let logSeq = 0;
 
 /**
- * Feedback único pra toda ação que avança o fluxo (gerar texto, gerar
- * arte/vídeo, aprovar, recusar, reescrever): um modal sobre a tela inteira
- * com loading + contador, um log do que aconteceu e o resultado — sucesso
- * ou o erro por inteiro. Fica montado no layout raiz, então sobrevive ao
- * unmount do componente que disparou (o ArtEditor some quando o post vai
- * pra revisão) e à navegação (CaptureForm → /posts/:id).
+ * Single feedback for every action that advances the flow (generate text,
+ * generate art/video, approve, reject, rewrite): a full-screen modal with
+ * loading + counter, a log of what happened and the result — success or the
+ * whole error. It stays mounted in the root layout, so it survives the unmount
+ * of the component that triggered it (the ArtEditor disappears when the post
+ * goes to review) and navigation (CaptureForm → /posts/:id).
  *
- * Nasceu pro mobile: o spinner dentro do botão e o alert embaixo dele
- * ficam fora da vista quando o botão está no fim da página — o modal não.
+ * Born for mobile: the spinner inside the button and the alert below it end up
+ * out of view when the button is at the bottom of the page — the modal does not.
  */
 export function ActionOverlayProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<OverlayState | null>(null);
   const pathname = usePathname();
   const lastPathname = useRef(pathname);
   const autoCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Enquanto o erro está na tela, `run` fica esperando a decisão da pessoa.
+  // While the error is on screen, `run` waits for the person's decision.
   const decisionRef = useRef<((choice: "retry" | "close") => void) | null>(null);
 
   const clearTimer = () => {
@@ -125,7 +125,7 @@ export function ActionOverlayProvider({ children }: { children: ReactNode }) {
   const close = useCallback(() => {
     clearTimer();
     if (decisionRef.current) {
-      // O `run` está parado no erro — quem limpa o estado é ele.
+      // `run` is stopped at the error — it is the one that clears the state.
       decisionRef.current("close");
       return;
     }
@@ -205,8 +205,8 @@ export function ActionOverlayProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Sucesso que ficou esperando navegação (successDelayMs = 0): a página
-  // nova chegou, pode fechar.
+  // Success that was waiting for navigation (successDelayMs = 0): the new page
+  // arrived, it can close.
   useEffect(() => {
     if (lastPathname.current === pathname) return;
     lastPathname.current = pathname;
@@ -254,8 +254,8 @@ function ActionOverlayDialog({
   const resultRef = useRef<HTMLLIElement>(null);
   const loading = state.status === "loading";
 
-  // Trava o scroll da página por baixo — no mobile o dedo escorrega fácil
-  // pro conteúdo de trás e a pessoa perde o modal de vista.
+  // Locks the page scroll underneath — on mobile a finger easily slips to the
+  // content behind and the person loses sight of the modal.
   useEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -264,16 +264,16 @@ function ActionOverlayDialog({
     };
   }, []);
 
-  // Foco: entra no diálogo ao abrir (leitor de tela anuncia); quando termina,
-  // vai pro botão principal pra dar pra seguir só com Enter.
+  // Focus: moves into the dialog on open (the screen reader announces it); when
+  // it finishes, goes to the main button so it can be continued with just Enter.
   useEffect(() => {
     if (loading) dialogRef.current?.focus();
     else primaryRef.current?.focus();
   }, [loading]);
 
-  // Enquanto roda, acompanha as linhas novas; quando termina, mostra o
-  // COMEÇO do resultado — num erro longo (stderr do ffmpeg) a 1ª linha é a
-  // que explica, o resto é detalhe pra quem quiser rolar.
+  // While it runs, it follows the new lines; when it finishes, it shows the
+  // START of the result — on a long error (ffmpeg's stderr) the 1st line is the
+  // one that explains, the rest is detail for whoever wants to scroll.
   useEffect(() => {
     if (state.status === "loading") logEndRef.current?.scrollIntoView({ block: "nearest" });
     else resultRef.current?.scrollIntoView({ block: "start" });
@@ -320,7 +320,7 @@ function ActionOverlayDialog({
               : "shadow-glow"
         }`}
       >
-        {/* Cabeçalho: ícone grande + o que está acontecendo */}
+        {/* Header: big icon + what is happening */}
         <div className="flex flex-col items-center gap-3 text-center">
           <StatusIcon status={state.status} />
           <h2 id="action-overlay-title" className="text-base font-semibold leading-snug text-ink">
@@ -337,7 +337,7 @@ function ActionOverlayDialog({
           )}
         </div>
 
-        {/* Log — única área que rola, pra caber erro longo (stderr do ffmpeg) */}
+        {/* Log — the only area that scrolls, to fit a long error (ffmpeg stderr) */}
         <div
           id="action-overlay-log"
           className="mt-4 min-h-0 flex-1 overflow-y-auto rounded-xl border border-lineSoft bg-elevated p-3"
@@ -373,11 +373,11 @@ function ActionOverlayDialog({
           <div ref={logEndRef} />
         </div>
 
-        {/* Ações */}
+        {/* Actions */}
         {loading && state.progress ? (
-          // Upload: quem trabalha é o aparelho — sair do app congela/derruba o
-          // envio e ele recomeça do zero. Na fase do servidor (sem barra) o
-          // aviso genérico basta, o trabalho continua sem o celular.
+          // Upload: the device is doing the work — leaving the app freezes/drops the
+          // upload and it restarts from zero. In the server phase (no bar) the
+          // generic warning is enough, the work carries on without the phone.
           <p
             role="alert"
             className="mt-4 flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-xs leading-relaxed text-amber-200"
@@ -386,9 +386,9 @@ function ActionOverlayDialog({
             <span>{t.uploadWarning}</span>
           </p>
         ) : loading ? (
-          // Sem barra de progresso é a fase de processamento no servidor
-          // (ex.: render de vídeo com ffmpeg) — pode demorar bem mais que o
-          // upload, então o aviso precisa ser tão visível quanto o de cima.
+          // No progress bar is the processing phase on the server (e.g. a video
+          // render with ffmpeg) — it can take much longer than the upload, so the
+          // warning has to be as visible as the one above.
           <p
             role="alert"
             className="mt-4 flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-xs leading-relaxed text-amber-200"
@@ -444,7 +444,7 @@ function StatusIcon({ status }: { status: Status }) {
   );
 }
 
-/** Barra de upload — porcentagem grande o bastante pra ler no celular sem óculos. */
+/** Upload bar — a percentage big enough to read on a phone without glasses. */
 function ProgressBar({ ratio, detail }: { ratio: number; detail: string | null }) {
   const pct = Math.round(ratio * 100);
   return (

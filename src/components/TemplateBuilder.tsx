@@ -7,9 +7,9 @@ import { Tooltip } from "./Tooltip";
 import { useLocale } from "./LocaleProvider";
 
 /**
- * Formatos aceitos pelo feed do Instagram. 4:5 vem primeiro — é o formato
- * padrão da redação (ocupa mais tela no celular) e por isso o pré-selecionado
- * tanto aqui quanto na escolha de template do editor de arte.
+ * Formats accepted by the Instagram feed. 4:5 comes first — it is the
+ * newsroom's default format (takes more screen on a phone) and therefore the
+ * pre-selected one both here and in the template choice of the art editor.
  */
 const FORMATS = [
   { id: "4:5", w: 1080, h: 1350 },
@@ -179,7 +179,7 @@ export function TemplateBuilder({ onCreated }: { onCreated?: () => void }) {
 
   return (
     <div className="space-y-5">
-      {/* Como fazer a moldura */}
+      {/* How to build the frame */}
       <details className="card-soft p-3">
         <summary className="cursor-pointer text-sm font-medium">
           {dict.templateBuilder.canvaGuide.title}

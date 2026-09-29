@@ -8,7 +8,7 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // Superfícies (dark-first)
+        // Surfaces (dark-first)
         bg: "#0a0c10",
         surface: "#12151b",
         elevated: "#181c24",

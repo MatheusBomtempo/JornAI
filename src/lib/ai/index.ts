@@ -12,18 +12,18 @@ export type { GenerateInput, GeneratedContent } from "./types";
 let cached: AiProvider | null = null;
 
 /**
- * Monta a corrente de fallback com os provedores que têm chave configurada.
- * Ordem: Groq (rápido, testado) -> OpenRouter (2º elo, com os modelos
- * gratuitos que passaram no teste de formato). NVIDIA fica de fora por
- * padrão — ver o comentário em env.ts sobre por quê.
+ * Builds the fallback chain from the providers that have a key configured.
+ * Order: Groq (fast, tested) -> OpenRouter (2nd link, with the free models
+ * that passed the format test). NVIDIA is left out by default — see the
+ * comment in env.ts for why.
  */
 function buildChain(): AiProvider[] {
   const links: AiProvider[] = [];
 
-  // Timeout curto nos elos gratuitos: um modelo saudável responde em 1-3s;
-  // se está demorando mais que isso, é sinal de fila/congestionamento no
-  // pool compartilhado gratuito — falhar rápido e cair pro próximo elo é
-  // melhor do que ficar esperando até 25s por chamada, várias vezes seguidas.
+  // Short timeout on the free links: a healthy model answers in 1-3s; if it
+  // takes longer, the shared free pool is queued or congested — failing fast
+  // and falling through to the next link beats waiting up to 25s per call,
+  // several times in a row.
   const FREE_TIER_TIMEOUT_MS = 15_000;
 
   if (env.ai.groqKey) {
@@ -57,8 +57,8 @@ function buildChain(): AiProvider[] {
   }
 
   if (env.ai.nvidiaKey && env.ai.nvidiaModel) {
-    // Só entra se você definir NVIDIA_MODEL explicitamente — nenhum modelo
-    // ficou pronto pra uso automático nos testes (ver env.ts).
+    // Only joins if you set NVIDIA_MODEL explicitly — no model was ready for
+    // automatic use in testing (see env.ts).
     links.push(
       new OpenAICompatibleProvider({
         name: "nvidia",
@@ -77,7 +77,7 @@ function buildChain(): AiProvider[] {
   return links;
 }
 
-/** Fábrica do provider de IA conforme AI_PROVIDER. */
+/** Factory of the AI provider selected by AI_PROVIDER. */
 export function getAiProvider(): AiProvider {
   if (cached) return cached;
   switch (env.ai.provider) {
@@ -136,27 +136,27 @@ export function getAiProvider(): AiProvider {
       break;
     default:
       throw new Error(
-        `AI_PROVIDER desconhecido: "${env.ai.provider}". Use chain, anthropic, groq, gemini, nvidia, openrouter, openai ou mock.`,
+        `Unknown AI_PROVIDER: "${env.ai.provider}". Use chain, anthropic, groq, gemini, nvidia, openrouter, openai or mock.`,
       );
   }
   return cached;
 }
 
 /**
- * Pipeline de geração de texto de um post. Carrega os exemplos de estilo
- * do jornal e chama o provider configurado.
+ * Text generation pipeline of a post. Loads the newspaper's style examples
+ * and calls the configured provider.
  *
- * Em modo "chain", a resiliência já vem de trocar de PROVEDOR quando um
- * falha (rate limit, fora do ar, etc.) — não faz sentido retentar a corrente
- * inteira de novo. Em modo de provider único, uma retentativa resolve a
- * maioria das respostas vazias/malformadas dos modelos gratuitos; erro de
- * limite de taxa é a exceção (não adianta insistir na hora).
+ * In "chain" mode, resilience already comes from switching PROVIDER when one
+ * fails (rate limit, down, etc.) — retrying the whole chain again makes no
+ * sense. In single-provider mode, one retry fixes most empty/malformed
+ * answers from free models; a rate limit error is the exception (insisting
+ * right away does not help).
  */
 export async function generatePostContent(
   input: Omit<GenerateInput, "examples">,
 ): Promise<GeneratedContent> {
-  // Poucos exemplos, e cada legenda é cortada em buildUserPrompt — provedores
-  // gratuitos cobram por tokens/minuto e um prompt grande pode estourar sozinho.
+  // Few examples, and each caption is clipped in buildUserPrompt — free
+  // providers meter tokens per minute and a big prompt can blow the quota alone.
   const examples = await prisma.styleExample.findMany({
     orderBy: { orderIndex: "asc" },
     take: 3,
@@ -166,13 +166,13 @@ export async function generatePostContent(
   const fullInput = { ...input, examples };
 
   const first = await generateOnce(provider, fullInput);
-  // O mock copia trechos da fonte ao pé da letra — validar não faz sentido.
+  // The mock copies snippets of the source verbatim — validating makes no sense.
   if (provider instanceof MockProvider) return first;
 
-  // Validação factual determinística (validate.ts): compara o texto gerado
-  // com a fonte. Violou → UMA regeneração com as correções como guidance;
-  // se ainda violar, falha alto — melhor um erro claro pro jornalista do
-  // que um post convincente com fato inventado.
+  // Deterministic factual validation (validate.ts): compares the generated
+  // text with the source. Violated → ONE regeneration with the fixes as
+  // guidance; if it still violates, fail loudly — a clear error for the
+  // reporter beats a convincing post with an invented fact.
   const sourceText = [input.text, input.scrapedContent]
     .filter(Boolean)
     .join("\n");
@@ -180,9 +180,9 @@ export async function generatePostContent(
   if (!violations.length) return first;
 
   console.warn(
-    `[JornAI] Validação factual reprovou a 1ª geração (${violations
+    `[JornAI] Factual validation rejected the 1st generation (${violations
       .map((v) => v.rule)
-      .join("; ")}). Regenerando com correções.`,
+      .join("; ")}). Regenerating with corrections.`,
   );
   const corrective = violationsToGuidance(violations);
   const retryInput = {
@@ -194,9 +194,9 @@ export async function generatePostContent(
   if (!remaining.length) return second;
 
   throw new Error(
-    "A IA insistiu em violar regras de fidelidade factual mesmo após correção " +
+    "The AI kept violating factual-fidelity rules even after correction " +
       `(${remaining.map((v) => v.rule).join("; ")}). ` +
-      "Nada foi salvo — tente gerar de novo ou ajuste a fonte.",
+      "Nothing was saved — try generating again or adjust the source.",
   );
 }
 
@@ -212,7 +212,7 @@ async function generateOnce(
   } catch (err) {
     if (isRateLimitError(err)) throw err;
     console.warn(
-      `[JornAI] IA (${provider.name}) falhou na 1ª tentativa, tentando de novo: ${(err as Error).message}`,
+      `[JornAI] AI (${provider.name}) failed on the 1st attempt, trying again: ${(err as Error).message}`,
     );
     return await provider.generate(input);
   }

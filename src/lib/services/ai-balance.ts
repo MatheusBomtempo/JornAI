@@ -3,39 +3,39 @@ import { env } from "../env";
 import { ApiError } from "../http";
 
 /**
- * Saldo de créditos do provedor de IA, lido direto na API do OpenRouter.
+ * Balance of the AI provider's credits, read straight from the OpenRouter API.
  *
- * Só o OpenRouter expõe isso por API (Groq, Gemini, OpenAI e Anthropic não
- * têm endpoint público de saldo) — como é ele que carrega a corrente hoje
- * (ver buildChain em ai/index.ts), o painel mostra o saldo sempre que houver
- * OPENROUTER_API_KEY, independente do AI_PROVIDER. Dois endpoints:
+ * Only OpenRouter exposes this through an API (Groq, Gemini, OpenAI and
+ * Anthropic have no public balance endpoint) — since it is the one carrying
+ * the chain today (see buildChain in ai/index.ts), the panel shows the balance
+ * whenever OPENROUTER_API_KEY is set, regardless of AI_PROVIDER. Two endpoints:
  *
- *   GET /credits   → total comprado e total gasto da CONTA (todas as chaves)
- *   GET /auth/key  → gasto desta CHAVE (hoje/semana/mês) e limite, se houver
+ *   GET /credits   → total purchased and total spent of the ACCOUNT (all keys)
+ *   GET /auth/key  → spend of this KEY (today/week/month) and limit, if any
  *
- * A chave é global (env), não por empresa — então todo admin vê o mesmo
- * saldo da instalação.
+ * The key is global (env), not per company — so every admin sees the same
+ * balance of the installation.
  */
 export interface AiBalance {
   provider: "openrouter";
-  /** Créditos comprados na conta, em USD. */
+  /** Credits purchased on the account, in USD. */
   totalCredits: number;
-  /** Tudo que a conta já gastou, em USD (todas as chaves). */
+  /** Everything the account has already spent, in USD (all keys). */
   totalUsage: number;
-  /** totalCredits - totalUsage (nunca negativo). */
+  /** totalCredits - totalUsage (never negative). */
   remaining: number;
-  /** Consumo só desta chave (a que o JornAI usa), em USD. */
+  /** Consumption of this key only (the one JornAI uses), in USD. */
   key: {
     label: string;
     usage: number;
     usageDaily: number;
     usageWeekly: number;
     usageMonthly: number;
-    /** Teto de gasto configurado na chave (null = sem teto). */
+    /** Spend cap configured on the key (null = no cap). */
     limit: number | null;
     limitRemaining: number | null;
     isFreeTier: boolean;
-    /** Cota diária de requisições a modelos ":free" (a corrente usa um como 3º elo). */
+    /** Daily quota of requests to ":free" models (the chain uses one as the 3rd link). */
     freeModelDailyRequests: { used: number; limit: number; remaining: number } | null;
   };
   fetchedAt: string;
@@ -122,7 +122,7 @@ async function openrouterGet<T>(path: string): Promise<T> {
       (err as Error).name === "AbortError"
         ? "tempo esgotado"
         : (err as Error).message;
-    throw new ApiError(502, `OpenRouter não respondeu (${why}).`);
+    throw new ApiError(502, `OpenRouter did not answer (${why}).`);
   } finally {
     clearTimeout(timeout);
   }
@@ -132,7 +132,7 @@ async function openrouterGet<T>(path: string): Promise<T> {
     | null;
   if (!res.ok || !body?.data) {
     const msg = body?.error?.message ?? `HTTP ${res.status}`;
-    throw new ApiError(502, `OpenRouter recusou a consulta de saldo: ${msg}`);
+    throw new ApiError(502, `OpenRouter refused the balance query: ${msg}`);
   }
   return body.data;
 }

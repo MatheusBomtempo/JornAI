@@ -7,8 +7,8 @@ import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
-// Poppins é a fonte da arte — usada no preview do editor para bater
-// exatamente com o render do servidor.
+// Poppins is the art's font — used in the editor preview to match the server
+// render exactly.
 const poppins = Poppins({
   subsets: ["latin"],
   weight: ["400", "600", "700"],

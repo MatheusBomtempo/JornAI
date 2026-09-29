@@ -12,22 +12,22 @@ const presignSchema = z.object({
 });
 
 /**
- * POST /api/upload/presign — URL de upload direto pro storage (S3/R2), pro
- * navegador mandar o vídeo sem passar pelo corpo da function. Vídeo é o
- * único caso hoje: mesmo com o teto de 100 MB do app, o corpo de uma
- * function na Vercel tem um limite bem menor, e isso já derrubou upload de
- * vídeo em produção com 413 antes do arquivo sequer chegar no código
- * (ver POST /api/upload). Foto continua pelo fluxo antigo — 15 MB cabe.
+ * POST /api/upload/presign — direct upload URL to storage (S3/R2), so the
+ * browser sends the video without going through the function's body. Video is
+ * the only case today: even with the app's 100 MB ceiling, the body of a
+ * function on Vercel has a much lower limit, and that already broke video
+ * uploads in production with a 413 before the file even reached the code (see
+ * POST /api/upload). Photos keep the old flow — 15 MB fits.
  *
- * Em storage local (dev) não existe endpoint HTTP pra assinar; devolve
- * uploadUrl nulo e quem chamou cai de volta pro POST /api/upload de sempre.
+ * With local storage (dev) there is no HTTP endpoint to sign; it returns a null
+ * uploadUrl and the caller falls back to the usual POST /api/upload.
  */
 export const POST = route(async (req: NextRequest) => {
   await requireUser();
 
   const { contentType } = presignSchema.parse(await req.json());
   if (!ALLOWED_VIDEO.has(contentType)) {
-    throw badRequest("Formato não suportado (use MP4, MOV ou WebM).");
+    throw badRequest("Unsupported format (use MP4, MOV or WebM).");
   }
 
   const ext = contentType.split("/")[1] ?? "mp4";

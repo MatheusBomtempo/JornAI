@@ -13,15 +13,15 @@ import {
 } from "./slots";
 
 /**
- * Render final da arte no servidor (Sharp), a partir dos MESMOS parâmetros
- * salvos pelo editor — não a partir do canvas do navegador. Garante qualidade
- * e reprodutibilidade (SPEC.md).
+ * Final render of the art on the server (Sharp), from the SAME parameters
+ * saved by the editor — not from the browser canvas. It guarantees quality and
+ * reproducibility (SPEC.md).
  *
- * Composição, de baixo para cima:
- *   1. foto (com pan/zoom, recortada ao slot)
- *   2. overlay do template (PNG da marca, transparente onde a foto aparece)
- *   3. título  (Poppins, vetorizado)
- *   4. subtítulo (Poppins, vetorizado)
+ * Composition, from bottom to top:
+ *   1. photo (with pan/zoom, cropped to the slot)
+ *   2. template overlay (brand PNG, transparent where the photo shows)
+ *   3. title  (Poppins, vectorized)
+ *   4. subtitle (Poppins, vectorized)
  */
 
 export interface RenderArtParams {
@@ -35,17 +35,17 @@ export interface RenderArtParams {
   transform: unknown;
   title: string;
   subtitle?: string;
-  /** Deslocamento opcional do título/subtítulo — template continua intacto. */
+  /** Optional offset of the title/subtitle — the template stays intact. */
   titleOffset?: unknown;
   subtitleOffset?: unknown;
 }
 
 /**
- * Aplica o deslocamento (se houver) mantendo largura/altura do slot intactas.
- * Trava dentro dos limites do canvas — sem isso, um deslocamento grande o
- * suficiente empurra a caixa de texto pra fora da arte e o texto é cortado
- * na borda (a largura de quebra de linha continua a do slot original, então
- * uma caixa deslocada pra além do canvas nunca cabia de volta).
+ * Applies the offset (if any) keeping the slot's width/height intact. Clamps
+ * inside the canvas limits — without this, a large enough offset pushes the
+ * text box off the art and the text gets cut at the edge (the line-wrap width
+ * stays that of the original slot, so a box shifted beyond the canvas never
+ * fit back).
  */
 function offsetSlot(
   slot: TextSlot,
@@ -77,7 +77,7 @@ export async function renderArt(params: RenderArtParams): Promise<Buffer> {
 
   const layers: sharp.OverlayOptions[] = [];
 
-  // 1) Foto posicionada dentro do slot (com pan/zoom), recortada ao slot.
+  // 1) Photo positioned inside the slot (with pan/zoom), cropped to the slot.
   const slotImg = await renderPhotoIntoSlot(photoBuf, photoSlot, transform);
   if (slotImg) {
     layers.push({
@@ -94,9 +94,9 @@ export async function renderArt(params: RenderArtParams): Promise<Buffer> {
     .toBuffer();
   layers.push({ input: overlayResized, left: 0, top: 0 });
 
-  // 3 + 4) Título e subtítulo em Poppins vetorizada, num único SVG.
-  // O deslocamento (se o jornalista moveu o texto nesta versão) desloca só
-  // a posição — largura, fonte e quebra de linha continuam do template.
+  // 3 + 4) Title and subtitle in vectorized Poppins, in a single SVG.
+  // The offset (if the reporter moved the text in this version) only shifts
+  // the position — width, font and line wrapping stay the template's.
   const title = await renderTextToSvg(
     params.title ?? "",
     offsetSlot(titleSlot, params.titleOffset, params.canvasWidth, params.canvasHeight),
@@ -129,7 +129,7 @@ ${subtitle.svg}
     .toBuffer();
 }
 
-/** Render + upload no storage, devolvendo a URL pública. */
+/** Render + upload to storage, returning the public URL. */
 export async function renderAndStore(
   params: RenderArtParams,
   key: string,
@@ -189,7 +189,7 @@ async function renderPhotoIntoSlot(
 async function fetchBuffer(url: string): Promise<Buffer> {
   const res = await fetch(url);
   if (!res.ok) {
-    throw new Error(`Falha ao baixar recurso (${res.status}): ${url}`);
+    throw new Error(`Failed to download resource (${res.status}): ${url}`);
   }
   return Buffer.from(await res.arrayBuffer());
 }

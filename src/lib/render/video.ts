@@ -42,28 +42,29 @@ ffmpeg.setFfmpegPath(ffmpegInstaller.path);
 ffmpeg.setFfprobePath(ffprobeInstaller.path);
 
 /**
- * Render final do post de vídeo: baixa o vídeo original, normaliza pra 9:16
- * (sempre a mesma proporção, qualquer que seja o formato enviado), desenha
- * por cima o bloco de título + logo da empresa com animação de entrada
- * (desliza + aparece) e saída (some), e reencoda num único MP4 pronto pro
+ * Final render of the video post: downloads the original video, normalizes it
+ * to 9:16 (always the same proportion, whatever format was uploaded), draws on
+ * top the title block + company logo with an entry animation (slides + fades
+ * in) and an exit (fades out), and re-encodes it into a single MP4 ready for
  * Instagram (Reels).
  *
- * Por que overlay de PNG em vez de drawtext do ffmpeg: drawtext depende de
- * libfreetype conseguir carregar a fonte, e a Poppins só está disponível em
- * .woff (@fontsource) — não é garantido que o freetype do ffmpeg abra woff
- * em toda plataforma. Gerando o bloco como PNG (mesmo pipeline vetorizado do
- * render de imagem), reaproveitamos exatamente o mesmo texto da arte.
+ * Why a PNG overlay instead of ffmpeg's drawtext: drawtext depends on
+ * libfreetype being able to load the font, and Poppins is only available as
+ * .woff (@fontsource) — it is not guaranteed that ffmpeg's freetype opens woff
+ * on every platform. By generating the block as a PNG (the same vectorized
+ * pipeline as the image render), we reuse exactly the same text as the art.
  */
 
 /** Teto do encode — abaixo do maxDuration da rota (ver /api/posts/[id]/video). */
 const RENDER_TIMEOUT_MS = 240_000;
 
 /**
- * Taxa de quadros FIXA da saída. Sem isso a saída herdava a taxa declarada
- * na origem: WebM gravado pelo navegador declara 1000 fps (timebase de 1 ms)
- * e saía um MP4 de 1000 fps — 6.004 frames pra 6 s, render 4x mais lento e
- * rejeitado pelo Instagram (Reels aceita até 60). Câmera lenta (240 fps) e
- * gravação de tela têm o mesmo problema. 30 é o recomendado pro Reels.
+ * FIXED frame rate of the output. Without it the output inherited the rate
+ * declared in the source: a WebM recorded by the browser declares 1000 fps
+ * (1 ms timebase) and came out as a 1000 fps MP4 — 6,004 frames for 6 s, a
+ * render 4x slower and rejected by Instagram (Reels accepts up to 60). Slow
+ * motion (240 fps) and screen recordings have the same problem. 30 is the
+ * recommended value for Reels.
  */
 const OUTPUT_FPS = 30;
 
@@ -72,9 +73,9 @@ export interface RenderVideoParams {
   title: string;
   /** Logo da empresa, centralizada abaixo do texto. */
   logoUrl?: string | null;
-  /** Ajuste vertical do bloco feito no editor (px, já em escala 1080x1920). */
+  /** Vertical adjustment of the block made in the editor (px, already on a 1080x1920 scale). */
   titleOffsetY?: number;
-  /** Estilo fixo do cartão — ver buildVideoCardStyles. */
+  /** Fixed style of the card — see buildVideoCardStyles. */
   videoTemplate?: VideoCardStyle["id"];
   /** Cores da marca da empresa (Admin → Empresa), usadas em "Claro"/"Destaque". */
   brandColors?: CompanyBrandColors;
@@ -88,7 +89,7 @@ export interface VideoProbe {
 
 async function downloadToTemp(url: string, suffix: string): Promise<string> {
   const res = await fetch(url);
-  if (!res.ok) throw new Error(`Falha ao baixar mídia (${res.status}): ${url}`);
+  if (!res.ok) throw new Error(`Failed to download media (${res.status}): ${url}`);
   const buf = Buffer.from(await res.arrayBuffer());
   const dest = path.join(os.tmpdir(), `${randomUUID()}${suffix}`);
   await fs.writeFile(dest, buf);
@@ -96,36 +97,36 @@ async function downloadToTemp(url: string, suffix: string): Promise<string> {
 }
 
 /**
- * Duração, dimensões e rotação do vídeo — base do frame do meio e da
- * validação de proporção.
+ * Duration, dimensions and rotation of the video — basis of the middle frame
+ * and of the proportion validation.
  *
- * Dimensões já na orientação EXIBIDA: celular filmando em pé costuma gravar
- * o arquivo "deitado" (1920x1080) com uma matriz de rotação de 90° — o
- * ffmpeg gira os frames sozinho ao decodificar, mas a largura/altura do
- * stream continuam as do arquivo. Sem trocar aqui, vídeo em pé era tratado
- * como deitado: aviso errado no editor e render ~2,5x mais lento, montando
- * à toa o fundo desfocado (medido em produção).
+ * Dimensions already in the DISPLAYED orientation: a phone filming upright
+ * usually records the file "landscape" (1920x1080) with a 90° rotation matrix
+ * — ffmpeg rotates the frames by itself when decoding, but the stream's
+ * width/height stay those of the file. Without swapping here, an upright video
+ * was treated as landscape: a wrong warning in the editor and a render ~2.5x
+ * slower, needlessly building the blurred background (measured in production).
  */
 export async function probeVideoFile(filePath: string): Promise<VideoProbe> {
   const data = await new Promise<ffmpeg.FfprobeData>((resolve, reject) =>
     ffmpeg.ffprobe(filePath, (err, d) => (err ? reject(err) : resolve(d))),
   );
   const stream = data.streams.find((s) => s.codec_type === "video");
-  if (!stream) throw new Error("O arquivo enviado não tem faixa de vídeo.");
+  if (!stream) throw new Error("The uploaded file has no video track.");
 
-  // fluent-ffmpeg expõe a matriz de rotação em `rotation`; ffprobe antigo
-  // (o do build Linux da Vercel) usa a tag `rotate`. Vale ±90 e ±270.
+  // fluent-ffmpeg exposes the rotation matrix in `rotation`; an old ffprobe
+  // (the one in Vercel's Linux build) uses the `rotate` tag. It covers ±90 and ±270.
   const s = stream as typeof stream & { rotation?: string | number; tags?: { rotate?: string } };
   const rotation = Math.abs(Number(s.rotation ?? s.tags?.rotate ?? 0)) % 180;
   const [width, height] =
     rotation === 90 ? [stream.height ?? 0, stream.width ?? 0] : [stream.width ?? 0, stream.height ?? 0];
 
-  // Duração da FAIXA DE VÍDEO, não do container: o áudio costuma ser uns
-  // décimos mais longo e a saída do título é calculada pelo fim — tem que
-  // terminar antes do último frame de imagem. Sem duração na faixa cai na do
-  // container; sem nenhuma das duas (WebM gravado pelo navegador/MediaRecorder
-  // não escreve duração no cabeçalho), lê o último pacote — sem isso o título
-  // sumia aos ~4s num vídeo de 60s.
+  // Duration of the VIDEO TRACK, not of the container: the audio is usually a
+  // few tenths longer and the title's exit is computed from the end — it has to
+  // finish before the last image frame. With no duration on the track it falls
+  // back to the container's; with neither (a WebM recorded by the browser/
+  // MediaRecorder writes no duration in the header), it reads the last packet
+  // — without that the title vanished at ~4s in a 60s video.
   const durationSec =
     Number(stream.duration) || Number(data.format.duration) || (await lastPacketTime(filePath));
 
@@ -133,8 +134,8 @@ export async function probeVideoFile(filePath: string): Promise<VideoProbe> {
 }
 
 /**
- * Timestamp do último pacote de vídeo — só demux (não decodifica), então é
- * rápido mesmo em arquivo grande. 0 se não der pra ler.
+ * Timestamp of the last video packet — demux only (no decoding), so it is fast
+ * even on a big file. 0 if it cannot be read.
  */
 function lastPacketTime(filePath: string): Promise<number> {
   return new Promise((resolve) => {
@@ -156,16 +157,16 @@ function lastPacketTime(filePath: string): Promise<number> {
 }
 
 /**
- * scale+crop que normaliza pra 9:16 vídeos que já são altos o bastante (só
- * corta em cima/embaixo).
+ * scale+crop that normalizes to 9:16 videos that are already tall enough (it
+ * only crops top/bottom).
  *
- * ATENÇÃO à forma: função + array.join, igual ao blurPadGraph — NÃO uma
- * const `template + template` interpolada dentro de outro template. O
- * minificador do SWC no build Linux (o da Vercel) perdia o último trecho do
- * template da esquerda ao inlinar essa const: o ffmpeg recebia
- * "scale=1080:1920crop=1080:1920" e caía com "Option '1920crop' not found".
- * Reproduzido com `next build` em WSL; no Windows o bundle do servidor sai
- * sem minificar, por isso local sempre funcionou.
+ * WATCH the shape: a function + array.join, like blurPadGraph — NOT a const
+ * `template + template` interpolated inside another template. The SWC
+ * minifier in the Linux build (Vercel's) lost the last piece of the left-hand
+ * template when inlining that const: ffmpeg received
+ * "scale=1080:1920crop=1080:1920" and failed with "Option '1920crop' not
+ * found". Reproduced with `next build` on WSL; on Windows the server bundle
+ * comes out unminified, which is why it always worked locally.
  */
 function cropGraph(inputLabel?: string, outputLabel?: string): string {
   const input = inputLabel ? `[${inputLabel}]` : "";
@@ -177,12 +178,12 @@ function cropGraph(inputLabel?: string, outputLabel?: string): string {
 }
 
 /**
- * Núcleo do fundo desfocado: divide o stream em dois — uma cópia vira fundo
- * (ampliada pra preencher 1080x1920, espelhada e borrada) e a outra fica
- * inteira, sem cortar nada, encaixada por cima e centralizada. Usado quando
- * o vídeo enviado é mais largo que 9:16 (deitado) — em vez de cortar as
- * laterais pra caber, preenche o espaço vertical sobrando com o próprio
- * vídeo desfocado.
+ * Core of the blurred background: splits the stream in two — one copy becomes
+ * the background (enlarged to fill 1080x1920, mirrored and blurred) and the
+ * other stays whole, uncropped, fitted on top and centered. Used when the
+ * uploaded video is wider than 9:16 (landscape) — instead of cropping the
+ * sides to fit, it fills the leftover vertical space with the blurred video
+ * itself.
  */
 function blurPadGraph(tag: string, inputLabel?: string, outputLabel?: string): string {
   const input = inputLabel ? `[${inputLabel}]` : "";
@@ -197,9 +198,9 @@ function blurPadGraph(tag: string, inputLabel?: string, outputLabel?: string): s
 }
 
 /**
- * Filtro que normaliza qualquer vídeo pra 1080x1920: corta em cima/embaixo
- * se já for alto o bastante, ou usa o fundo desfocado (ver acima) se for
- * deitado — nesse caso nada da imagem original se perde.
+ * Filter that normalizes any video to 1080x1920: crops top/bottom if it is
+ * already tall enough, or uses the blurred background (see above) if it is
+ * landscape — in which case nothing of the original image is lost.
  */
 function buildNormalizeFilter(
   srcWidth: number,
@@ -213,21 +214,22 @@ function buildNormalizeFilter(
 }
 
 /**
- * fluent-ffmpeg descarta do err.message toda linha de stderr que começa com
- * "[" ou espaço — justamente as linhas "[filtro @ 0x…] Option 'x' not found"
- * que dizem o que quebrou de verdade. Devolve um erro com o comando exato e
- * o stderr inteiro (o ring de ~100 linhas) pra isso não sumir.
+ * fluent-ffmpeg drops from err.message every stderr line that starts with "["
+ * or a space — precisely the "[filter @ 0x…] Option 'x' not found" lines that
+ * say what really broke. Returns an error with the exact command and the whole
+ * stderr (the ~100-line ring) so that does not get lost.
  */
 function withFfmpegContext(err: Error, command: string, stderr: string | null): Error {
   return new Error(
-    `${err.message}\n--- binário ---\n${ffmpegInstaller.path} (${ffmpegInstaller.version})` +
+    `${err.message}\n--- binary ---\n${ffmpegInstaller.path} (${ffmpegInstaller.version})` +
       `\n--- comando ---\n${command}\n--- stderr ---\n${(stderr ?? "").trim()}`,
   );
 }
 
 /**
- * Frame do meio do vídeo, já normalizado em 9:16 — é o fundo do preview no
- * editor, então precisa passar pelo MESMO enquadramento do render final.
+ * Middle frame of the video, already normalized to 9:16 — it is the background
+ * of the preview in the editor, so it has to go through the SAME framing as
+ * the final render.
  */
 export async function extractMiddleFrame(
   videoUrl: string,
@@ -263,7 +265,7 @@ export async function extractMiddleFrame(
   }
 }
 
-/** Frame do meio + upload, devolvendo URL pública e os dados do probe. */
+/** Middle frame + upload, returning the public URL and the probe data. */
 export async function extractAndStoreMiddleFrame(
   videoUrl: string,
   key: string,
@@ -274,11 +276,11 @@ export async function extractAndStoreMiddleFrame(
 }
 
 /**
- * Bloco sobreposto: caixa com o título e, abaixo dela, a logo da empresa
- * centralizada. Sai com a largura do vídeo (1080) pra ser sobreposto em x=0.
- * O visual da caixa (cor, borda, barra de destaque) vem do estilo escolhido
- * no editor — ver VIDEO_CARD_STYLES; o layout (posição do texto e da logo)
- * é sempre o mesmo nos 3 estilos.
+ * Overlaid block: a box with the title and, below it, the company logo
+ * centered. It comes out with the video's width (1080) to be overlaid at x=0.
+ * The box's look (color, border, highlight bar) comes from the style chosen in
+ * the editor — see VIDEO_CARD_STYLES; the layout (position of the text and the
+ * logo) is always the same in the 3 styles.
  */
 async function buildOverlayCardPng(
   title: string,
@@ -308,8 +310,8 @@ async function buildOverlayCardPng(
   const border = style.cardBorder ? ` stroke="${style.cardBorder}" stroke-width="1.5"` : "";
   const box = `<rect ${cardRect} fill="${style.cardFill}" fill-opacity="${style.cardOpacity}"${border}/>`;
 
-  // A barra de destaque é clipada com o mesmo raio da caixa pra não escapar
-  // dos cantos arredondados.
+  // The highlight bar is clipped with the same radius as the box so it does not
+  // escape the rounded corners.
   const hasAccent = Boolean(style.accentColor) && style.accentHeight > 0;
   const defs = hasAccent ? `<defs><clipPath id="cardClip"><rect ${cardRect}/></clipPath></defs>` : "";
   const accentBar = hasAccent
@@ -334,7 +336,7 @@ async function buildOverlayCardPng(
   return { buffer: await image.png().toBuffer(), height: totalHeight };
 }
 
-/** Logo redimensionada pra LOGO_HEIGHT, mantendo proporção. */
+/** Logo resized to LOGO_HEIGHT, keeping the proportion. */
 async function loadLogo(
   logoUrl: string,
 ): Promise<{ buffer: Buffer; width: number; height: number } | null> {
@@ -352,26 +354,26 @@ async function loadLogo(
       height: meta.height ?? LOGO_HEIGHT,
     };
   } catch {
-    // Logo é enfeite: se falhar o download, o vídeo sai sem ela em vez de quebrar.
+    // The logo is decoration: if the download fails, the video comes out without it instead of breaking.
     return null;
   }
 }
 
-/** Progresso 0–1 no intervalo [start, end], travado nas pontas. */
+/** Progress 0–1 in the interval [start, end], clamped at the ends. */
 function clamp01Progress(start: number, end: number): string {
   return `min(1,max(0,(t-${start})/${end - start}))`;
 }
 
-/** Suaviza um progresso 0–1 linear em uma curva easing (lenta-rápida-lenta). */
+/** Smooths a linear 0–1 progress into an easing curve (slow-fast-slow). */
 function smoothstep(progress: string): string {
   return `(${progress}*${progress}*(3-2*${progress}))`;
 }
 
 /**
- * Y do overlay ao longo do tempo: desliza de baixo pra cima na entrada e um
- * pouco pra baixo na saída — sempre com easing (smoothstep) em vez de
- * progresso linear, pra ficar fluido em vez de robótico. Sem janela de
- * saída (vídeo curto), só a entrada.
+ * Y of the overlay over time: slides from bottom to top on entry and a little
+ * downwards on exit — always with easing (smoothstep) instead of linear
+ * progress, to feel fluid instead of robotic. With no exit window (short
+ * video), only the entry.
  */
 function yExpr(restY: number, timing: TitleTiming): string {
   const enterEase = smoothstep(clamp01Progress(FADE_IN_START, FADE_IN_END));
@@ -381,7 +383,7 @@ function yExpr(restY: number, timing: TitleTiming): string {
   return `${expr}+${exitEase}*${EXIT_SLIDE_DISTANCE}`;
 }
 
-/** Filtros do cartão: entra com fade fixo no começo; sai com fade relativo ao fim do vídeo. */
+/** Card filters: enters with a fixed fade at the start; exits with a fade relative to the end of the video. */
 function cardFilter(timing: TitleTiming): string {
   const fadeIn = `fade=t=in:st=${FADE_IN_START}:d=${FADE_IN_END - FADE_IN_START}:alpha=1`;
   const fadeOut =
@@ -401,10 +403,10 @@ export async function renderVideoWithAnimatedTitle(
   const srcPath = await downloadToTemp(params.videoUrl, path.extname(params.videoUrl) || ".mp4");
   const outPath = path.join(os.tmpdir(), `${randomUUID()}-out.mp4`);
   const cardPath = path.join(os.tmpdir(), `${randomUUID()}-card.png`);
-  // try/finally: a instância da function é reaproveitada entre requisições
-  // (Fluid Compute) e o /tmp é pequeno — se só limpasse no sucesso, cada
-  // render que falhasse deixava o vídeo de origem (até 100 MB) no disco, e
-  // poucas falhas bastavam pra derrubar os próximos renders daquela instância.
+  // try/finally: the function instance is reused across requests (Fluid
+  // Compute) and /tmp is small — if it only cleaned up on success, every
+  // failed render left the source video (up to 100 MB) on disk, and a few
+  // failures were enough to break the next renders on that instance.
   try {
     return await renderInTemp(params, srcPath, cardPath, outPath);
   } finally {
@@ -427,25 +429,25 @@ async function renderInTemp(
   const card = await buildOverlayCardPng(params.title || "", style, params.logoUrl);
   await fs.writeFile(cardPath, card.buffer);
 
-  // Posição do bloco: padrão encostado no fim da área segura, mais o ajuste
-  // do editor — sempre travado dentro da área segura do Reels.
+  // Block position: by default flush with the end of the safe area, plus the
+  // editor's adjustment — always clamped inside the Reels safe area.
   const restY = clampGroupTop(
     defaultGroupTop(card.height) + (params.titleOffsetY ?? 0),
     card.height,
   );
 
-  // Saída do cartão calculada pelo fim do vídeo: fica na tela o tempo todo
-  // e some pouco antes de acabar (ver titleTiming).
+  // Card exit computed from the end of the video: it stays on screen the whole
+  // time and goes away shortly before it ends (see titleTiming).
   const timing = titleTiming(probe.durationSec);
 
   const filterComplex = [
-    // fps logo na entrada: o resto do grafo (e o encode) já trabalha só com
-    // os 30 quadros/s que vão sair — ver OUTPUT_FPS.
+    // fps right at the input: the rest of the graph (and the encode) already
+    // works only with the 30 frames/s that will come out — see OUTPUT_FPS.
     `[0:v]fps=${OUTPUT_FPS}[src]`,
     buildNormalizeFilter(probe.width, probe.height, { inputLabel: "src", outputLabel: "main" }),
     cardFilter(timing),
-    // eof_action=pass: quando o cartão acaba (fim da animação), o vídeo segue
-    // sem overlay até o próprio fim — e o encode termina junto com ele.
+    // eof_action=pass: when the card ends (end of the animation), the video
+    // carries on without the overlay until its own end — and the encode ends with it.
     `[main][txt]overlay=x=0:y='${yExpr(restY, timing)}':eval=frame:format=auto:eof_action=pass[outv]`,
   ].join(";");
 
@@ -453,11 +455,11 @@ async function renderInTemp(
     const command = ffmpeg()
       .input(srcPath)
       .input(cardPath)
-      // O PNG é um frame só: `-loop 1` vira stream contínuo e `-t` o limita à
-      // janela da animação. Sem esse `-t`, o stream do cartão é INFINITO e o
-      // encode nunca acaba quando o vídeo de origem não tem faixa de áudio
-      // (`-shortest` só se ancora em stream não-filtrado, então não corta nada
-      // e o ffmpeg fica duplicando o último frame pra sempre).
+      // The PNG is a single frame: `-loop 1` turns it into a continuous stream and
+      // `-t` limits it to the animation window. Without this `-t`, the card
+      // stream is INFINITE and the encode never ends when the source video has no
+      // audio track (`-shortest` only anchors on an unfiltered stream, so it cuts
+      // nothing and ffmpeg keeps duplicating the last frame forever).
       .inputOptions(["-loop", "1", "-t", String(timing.cardEnd)])
       .complexFilter(filterComplex)
       .outputOptions([
@@ -472,11 +474,11 @@ async function renderInTemp(
         "-movflags +faststart",
       ]);
 
-    // Rede de segurança: sem isso, qualquer encode que não termine deixa a
-    // tela do jornalista em "gerando o vídeo…" pra sempre, sem erro nenhum.
+    // Safety net: without this, any encode that never finishes leaves the
+    // reporter's screen on "generating the video…" forever, with no error at all.
     const timer = setTimeout(() => {
       command.kill("SIGKILL");
-      reject(new Error(`O render do vídeo passou de ${RENDER_TIMEOUT_MS / 1000}s e foi interrompido.`));
+      reject(new Error(`The video render exceeded ${RENDER_TIMEOUT_MS / 1000}s and was interrupted.`));
     }, RENDER_TIMEOUT_MS);
 
     let commandLine = "";
@@ -498,7 +500,7 @@ async function renderInTemp(
   return fs.readFile(outPath);
 }
 
-/** Render + upload no storage, devolvendo a URL pública. */
+/** Render + upload to storage, returning the public URL. */
 export async function renderVideoAndStore(
   params: RenderVideoParams,
   key: string,

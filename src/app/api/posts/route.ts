@@ -5,9 +5,9 @@ import { createPostWithAi, listPosts } from "@/lib/services/posts";
 import { maybeCleanupExpiredPosts } from "@/lib/services/retention";
 import { created, ok, route } from "@/lib/http";
 
-// POST pode rodar 2 passadas pela corrente de IA (validação + regeneração
-// corretiva) — sem isso a função é morta pelo Vercel antes de terminar
-// (502 sem log de erro nosso, visto em produção).
+// POST can run 2 passes through the AI chain (validation + corrective
+// regeneration) — without this the function is killed by Vercel before it
+// finishes (a 502 with no error log of ours, seen in production).
 export const maxDuration = 60;
 
 // GET /posts — listagem (filtros: ?status=&mine=1)

@@ -6,7 +6,7 @@ import { prisma } from "@/lib/db";
 import { createUserSchema } from "@/lib/validation";
 import { conflict, created, forbidden, ok, route } from "@/lib/http";
 
-// GET /users — manager/admin listam usuários
+// GET /users — manager/admin list users
 export const GET = route(async () => {
   const user = await requireCompanyUser();
   requireRole(user, "manager", "admin");
@@ -26,22 +26,23 @@ export const GET = route(async () => {
   return ok({ users });
 });
 
-// POST /users — manager/admin criam usuário. Manager só cria manager/staff —
-// só admin promove admin (pedido explícito do dono do produto). Senha
-// temporária ("sucessoNN") é sempre gerada no servidor e mandada por e-mail
-// (login automático) — quem cria nunca digita nem vê a senha. A pessoa troca
-// por uma própria depois de entrar (ver /api/auth/change-password).
+// POST /users — manager/admin create a user. A manager only creates
+// manager/staff — only admin promotes admin (explicit request from the product
+// owner). The temporary password ("successNN") is always generated on the
+// server and sent by email (automatic login) — whoever creates the account
+// never types or sees the password. The person swaps it for their own after
+// signing in (see /api/auth/change-password).
 export const POST = route(async (req: NextRequest) => {
   const actor = await requireCompanyUser();
   requireRole(actor, "manager", "admin");
   const data = createUserSchema.parse(await req.json());
 
   if (actor.role === "manager" && data.role === "admin") {
-    throw forbidden("Gerente só pode criar contas de gerente ou jornalista.");
+    throw forbidden("A manager can only create manager or reporter accounts.");
   }
 
   const exists = await prisma.user.findUnique({ where: { email: data.email } });
-  if (exists) throw conflict("Já existe um usuário com esse e-mail.");
+  if (exists) throw conflict("A user with this email already exists.");
 
   const tempPassword = generateTempPassword();
   const user = await prisma.user.create({
@@ -55,9 +56,9 @@ export const POST = route(async (req: NextRequest) => {
     select: { id: true, name: true, email: true, role: true, active: true },
   });
 
-  // A conta já existe mesmo se o e-mail falhar (ex.: erro no envio via
-  // Gmail) — não faz sentido travar a criação por causa disso. Quem criou
-  // usa "Reenviar login" depois de resolver o problema.
+  // The account already exists even if the email fails (e.g. a Gmail sending
+  // error) — it makes no sense to block the creation because of that. Whoever
+  // created it uses "Resend login" after fixing the problem.
   let emailSent = true;
   let emailError: string | undefined;
   try {

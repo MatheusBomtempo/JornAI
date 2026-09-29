@@ -30,11 +30,12 @@ interface CaptureDraft {
 }
 
 /**
- * Passo 1 do fluxo (ver Stepper na página): o jornalista manda o que tem —
- * texto colado, link (detectado automaticamente) e/ou um documento (PDF de
- * boletim de ocorrência, nota oficial, matéria) — e já marca os créditos.
- * Ao enviar, a IA já gera o texto. A foto vira o passo 2, depois de gerado
- * o post — assim quem ainda não tem uma imagem não fica travado aqui.
+ * Step 1 of the flow (see Stepper on the page): the reporter sends what they
+ * have — pasted text, link (detected automatically) and/or a document (PDF of
+ * a police report, official statement, article) — and already marks the
+ * credits. On submit, the AI already generates the text. The photo becomes step
+ * 2, after the post is generated — so whoever does not have an image yet does
+ * not get stuck here.
  */
 export function CaptureForm() {
   const router = useRouter();
@@ -57,9 +58,9 @@ export function CaptureForm() {
   const canSubmit = (trimmed.length > 0 || !!doc) && !busy && !extracting;
   const elapsed = useElapsedSeconds(!!busy);
 
-  // Recupera o rascunho salvo — essencial no mobile: sair da aba (ou trocar
-  // de app) costuma fazer o navegador descarregar esta página, e ao voltar
-  // ela recarrega do zero perdendo tudo que estava só em memória.
+  // Recovers the saved draft — essential on mobile: leaving the tab (or
+  // switching apps) usually makes the browser unload this page, and on return
+  // it reloads from scratch losing everything that was only in memory.
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -79,8 +80,8 @@ export function CaptureForm() {
     };
   }, []);
 
-  // Salva o rascunho a cada mudança (com debounce) depois de hidratado, para
-  // não sobrescrever um rascunho ainda não restaurado com o estado inicial vazio.
+  // Saves the draft on every change (debounced) after hydration, so as not to
+  // overwrite a draft that has not been restored yet with the empty initial state.
   useEffect(() => {
     if (!hydrated) return;
     if (!content.trim() && !doc && credits.length === 0) {
@@ -101,7 +102,7 @@ export function CaptureForm() {
     clearDraft(DRAFT_KEY);
   }, []);
 
-  /** Envia o PDF/txt e recebe o texto já extraído. */
+  /** Sends the PDF/txt and receives the text already extracted. */
   const acceptDoc = useCallback(async (f: File | undefined | null) => {
     if (!f) return;
     if (f.size > MAX_DOC_MB * 1024 * 1024) {
@@ -123,9 +124,9 @@ export function CaptureForm() {
   }, [dict]);
 
   /**
-   * Drop em qualquer ponto desta tela — não precisa mirar exatamente no
-   * botão. A foto fica pro passo 2 (depois de gerar o texto), então uma
-   * imagem solta aqui só avisa onde ela deve entrar.
+   * Drop anywhere on this screen — no need to aim exactly at the button. The
+   * photo is left for step 2 (after generating the text), so an image dropped
+   * here only warns where it should go.
    */
   const handleAutoDrop = useCallback(
     (f: File | undefined | null) => {
@@ -147,8 +148,8 @@ export function CaptureForm() {
     setError(null);
     const label = isLink ? dict.captureForm.busy.readingLink : dict.captureForm.busy.generatingText;
     setBusy(label);
-    // O modal (ActionOverlay) mostra loading, erro e sucesso; quando dá
-    // certo ele fica aberto até a página da pauta carregar (successDelayMs 0).
+    // The modal (ActionOverlay) shows loading, error and success; when it works
+    // it stays open until the story page loads (successDelayMs 0).
     const result = await run({
       title: label,
       success: dict.captureForm.done.textGenerated,
@@ -213,7 +214,7 @@ export function CaptureForm() {
         </div>
       )}
 
-      {/* O conteúdo */}
+      {/* The content */}
       <section className="card p-4 sm:p-5">
         <div className="mb-3 flex items-start justify-between gap-3">
           <div>
@@ -294,7 +295,7 @@ export function CaptureForm() {
         </div>
       </section>
 
-      {/* Créditos e marcações */}
+      {/* Credits and tags */}
       <section className="card p-4 sm:p-5">
         <div className="mb-3">
           <h2 className="text-sm font-semibold">

@@ -4,22 +4,22 @@ import { useLocale } from "./LocaleProvider";
 
 interface Props {
   artUrl?: string | null;
-  /** Post de vídeo: toca de verdade no preview — a revisão precisa assistir antes de aprovar. */
+  /** Video post: really plays in the preview — the review has to watch it before approving. */
   videoUrl?: string | null;
   caption?: string | null;
   handle?: string;
-  /** Logo da empresa (onboarding) — substitui o avatar genérico quando presente. */
+  /** Company logo (onboarding) — replaces the generic avatar when present. */
   logoUrl?: string | null;
   /**
-   * Proporção largura/altura do template (ex.: 1080/1350 para 4:5,
-   * 1080/1080 para 1:1, 1080/1920 pro vídeo). Sem isso, o preview assume um
-   * quadrado e corta a imagem quando o post é 4:5 — sempre passe o tamanho
-   * real do template.
+   * Width/height proportion of the template (e.g. 1080/1350 for 4:5,
+   * 1080/1080 for 1:1, 1080/1920 for video). Without it, the preview assumes a
+   * square and crops the image when the post is 4:5 — always pass the real
+   * size of the template.
    */
   aspectRatio?: number;
 }
 
-/** Mockup de post do feed do Instagram para a tela de revisão. */
+/** Mockup of an Instagram feed post for the review screen. */
 export function InstagramPreview({
   artUrl,
   videoUrl,
@@ -43,7 +43,7 @@ export function InstagramPreview({
         <span className="ml-auto text-muted" aria-hidden>···</span>
       </div>
 
-      {/* A proporção bate exatamente com o template, então nada é cortado. */}
+      {/* The proportion matches the template exactly, so nothing is cropped. */}
       <div className="bg-black" style={{ aspectRatio }}>
         {videoUrl ? (
           <video

@@ -4,8 +4,8 @@ import { requireRole } from "@/lib/rbac";
 import { getAiBalance } from "@/lib/services/ai-balance";
 import { ok, route } from "@/lib/http";
 
-// GET /ai-balance — saldo de créditos do provedor de IA (só admin).
-// Cache de 60s no servidor; ?fresh=1 força consulta nova (botão "Atualizar").
+// GET /ai-balance — credit balance of the AI provider (admin only).
+// 60s cache on the server; ?fresh=1 forces a new lookup ("Refresh" button).
 export const GET = route(async (req: NextRequest) => {
   const user = await requireCompanyUser();
   requireRole(user, "admin");

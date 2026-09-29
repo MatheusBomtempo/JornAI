@@ -11,7 +11,7 @@ import {
 
 const creditTypeIds = CREDIT_TYPES.map((c) => c.id) as [string, ...string[]];
 
-/** Crédito/marcação: tipo + @perfil. */
+/** Credit/tag: type + @handle. */
 export const creditSchema = z.object({
   type: z.enum(creditTypeIds),
   handle: z.string().trim().min(1, "Informe o @ do perfil."),
@@ -23,22 +23,22 @@ export const loginSchema = z.object({
   password: z.string().min(1),
 });
 
-/** Usuário logado troca a própria senha (ver /api/auth/change-password). */
+/** Logged-in user changes their own password (see /api/auth/change-password). */
 export const changePasswordSchema = z.object({
-  password: z.string().min(8, "A senha precisa ter ao menos 8 caracteres."),
+  password: z.string().min(8, "The password must be at least 8 characters long."),
 });
 
 // ── Posts ────────────────────────────────────────────────────
 /**
- * Captura unificada: o jornalista manda o que tem — texto OU link — mais
- * (opcionalmente) uma foto. O tipo de fonte é derivado no servidor.
+ * Unified capture: the reporter sends what they have — text OR link — plus
+ * (optionally) a photo. The source type is derived on the server.
  */
 export const createPostSchema = z
   .object({
     text: z.string().trim().min(1).optional(),
     url: z.string().url().optional(),
     photo: z.object({ storageUrl: z.string().url() }).optional(),
-    /** Documento anexado (PDF/txt) já convertido em texto pelo /api/documents. */
+    /** Attached document (PDF/txt) already converted to text by /api/documents. */
     document: z
       .object({
         name: z.string().min(1),
@@ -46,11 +46,11 @@ export const createPostSchema = z
         pages: z.number().int().positive().optional(),
       })
       .optional(),
-    /** Créditos/marcações opcionais (@perfil + tipo). */
+    /** Optional credits/tags (@handle + type). */
     credits: z.array(creditSchema).max(8).optional().default([]),
   })
   .refine((d) => !!(d.text || d.url || d.document), {
-    message: "Envie o texto da notícia, um link ou um documento.",
+    message: "Send the text of the story, a link or a document.",
     path: ["text"],
   });
 
@@ -60,7 +60,7 @@ export const saveArtSchema = z.object({
   photoTransform: photoTransformSchema,
   title: z.string().max(TITLE_MAX).default(""),
   subtitle: z.string().max(SUBTITLE_MAX).default(""),
-  // Posição do título/subtítulo pode ser ajustada por post, sem tocar no template.
+  // The title/subtitle position can be adjusted per post, without touching the template.
   titleOffset: textOffsetSchema.optional(),
   subtitleOffset: textOffsetSchema.optional(),
 });
@@ -70,11 +70,11 @@ export const regenerateSchema = z.object({
 });
 
 /**
- * Anexa uma foto extra a um post já criado — cobre os casos em que o
- * jornalista só decide a foto depois de gerar o texto: achou uma imagem
- * melhor, baixou uma do Google ou de um banco gratuito a partir das
- * sugestões da IA. Nunca substitui a foto já enviada sozinha; só adiciona
- * uma opção a mais pro jornalista escolher no editor de arte.
+ * Attaches an extra photo to an already-created post — covers the cases where
+ * the reporter only decides on the photo after generating the text: found a
+ * better image, downloaded one from Google or from a free stock library based
+ * on the AI's suggestions. It never replaces the photo already sent; it only
+ * adds one more option for the reporter to pick in the art editor.
  */
 export const addPhotoSchema = z.object({
   storageUrl: z.string().url(),
@@ -85,25 +85,26 @@ export const importPexelsPhotoSchema = z.object({
   downloadUrl: z.string().url(),
 });
 
-/** Mesma ideia do addPhotoSchema, pro fluxo de vídeo. */
+/** Same idea as addPhotoSchema, for the video flow. */
 export const addVideoSchema = z.object({
   storageUrl: z.string().url(),
   durationMs: z.number().int().positive().optional(),
 });
 
 /**
- * Salva a escolha de vídeo + título (o texto que entra animado por cima) e
- * dispara o render final — equivalente ao saveArtSchema, mas sem foto/slots:
- * o vídeo só tem o cartão de título, num dos 3 estilos fixos (videoTemplate).
+ * Saves the video choice + title (the text that comes in animated on top) and
+ * triggers the final render — equivalent to saveArtSchema, but without
+ * photo/slots: the video only has the title card, in one of the 3 fixed styles
+ * (videoTemplate).
  */
 export const saveVideoSchema = z.object({
   selectedVideoId: z.string().uuid(),
   title: z.string().max(TITLE_MAX).default(""),
-  /** Ajuste vertical do bloco no editor (px em escala 1080x1920). O render
-   *  trava o resultado dentro da área segura do Reels de qualquer jeito. */
+  /** Vertical adjustment of the block in the editor (px on a 1080x1920 scale).
+   *  The render clamps the result inside the Reels safe area anyway. */
   titleOffsetY: z.number().default(0),
-  /** Estilo fixo do cartão de título — ver VIDEO_CARD_STYLES. Padrão "bold"
-   *  (3º), igual ao default do banco e do DEFAULT_VIDEO_TEMPLATE. */
+  /** Fixed style of the title card — see VIDEO_CARD_STYLES. Default "bold"
+   *  (3rd), same as the database default and DEFAULT_VIDEO_TEMPLATE. */
   videoTemplate: z.enum(["classic", "light", "bold"]).default("bold"),
 });
 
@@ -114,7 +115,7 @@ export const editVersionSchema = z
     instagramCaption: z.string().optional(),
   })
   .refine((d) => Object.values(d).some((v) => v !== undefined), {
-    message: "Informe ao menos um campo para editar.",
+    message: "Provide at least one field to edit.",
   });
 
 export const rejectSchema = z.object({
@@ -146,8 +147,8 @@ export const artTemplateSchema = z.object({
 });
 
 // ── Users ────────────────────────────────────────────────────
-// Sem campo de senha: sempre gerada forte no servidor e mandada por e-mail
-// (nunca digitada por quem cria) — ver /api/users POST.
+// No password field: it is always generated strong on the server and sent by
+// email (never typed by whoever creates the account) — see /api/users POST.
 export const createUserSchema = z.object({
   name: z.string().min(1),
   email: z.string().email(),
@@ -164,7 +165,7 @@ export const updateUserSchema = z.object({
 // ── Empresa (onboarding) ──────────────────────────────────────
 const hexColorSchema = z
   .string()
-  .regex(/^#[0-9a-fA-F]{6}$/, "Use uma cor no formato #rrggbb.");
+  .regex(/^#[0-9a-fA-F]{6}$/, "Use a color in the #rrggbb format.");
 
 export const createCompanySchema = z.object({
   name: z.string().trim().min(1, "Informe o nome da empresa."),
@@ -172,30 +173,30 @@ export const createCompanySchema = z.object({
   instagramHandle: z.string().trim().max(60).optional(),
 });
 
-/** Edição depois do onboarding (Admin → Empresa). `null` limpa o campo. */
+/** Edit after onboarding (Admin → Company). `null` clears the field. */
 export const updateCompanySchema = z.object({
   name: z.string().trim().min(1, "Informe o nome da empresa.").optional(),
   logoUrl: z.string().url().nullable().optional(),
   instagramHandle: z.string().trim().max(60).nullable().optional(),
-  /** Cores da marca — usadas nos templates de vídeo. Ver VIDEO_CARD_STYLES. */
+  /** Brand colors — used in the video templates. See VIDEO_CARD_STYLES. */
   brandColorDark: hexColorSchema.nullable().optional(),
   brandColorLight: hexColorSchema.nullable().optional(),
   brandColorAccent: hexColorSchema.nullable().optional(),
 });
 
-// ── Configurações do app ─────────────────────────────────────
+// ── App settings ─────────────────────────────────────────────
 export const updateSettingsSchema = z.object({
   reviewRequired: z.boolean(),
 });
 
-/** Palavra que o admin precisa digitar pra liberar o reset — conferida também no servidor. */
+/** Word the admin has to type to unlock the reset — checked on the server too. */
 export const RESET_CONFIRM_WORD = "APAGAR";
 
-/** POST /admin/reset-data — Admin → Configurações → Zona de perigo. */
+/** POST /admin/reset-data — Admin → Settings → Danger zone. */
 export const resetDataSchema = z.object({
   scope: z.enum(["unpublished", "all"]),
   confirm: z.literal(RESET_CONFIRM_WORD, {
-    errorMap: () => ({ message: `Digite ${RESET_CONFIRM_WORD} pra confirmar.` }),
+    errorMap: () => ({ message: `Type ${RESET_CONFIRM_WORD} to confirm.` }),
   }),
 });
 

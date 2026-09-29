@@ -6,13 +6,13 @@ import { notFound, route } from "@/lib/http";
 
 const WEIGHTS = new Set<Weight>([400, 600, 700]);
 
-// GET /api/fonts/poppins/:weight — o MESMO .woff que o render do servidor
-// usa, pro editor de arte montar o texto com as mesmas métricas (ver
-// text-svg.ts). Pública (Poppins é OFL) e com cache longo: o arquivo só muda
-// quando o pacote @fontsource muda.
+// GET /api/fonts/poppins/:weight — the SAME .woff the server render uses, so
+// the art editor lays out the text with the same metrics (see text-svg.ts).
+// Public (Poppins is OFL) and with a long cache: the file only changes when
+// the @fontsource package changes.
 export const GET = route(async (_req: Request, ctx: { params: Promise<{ weight: string }> }) => {
   const weight = Number((await ctx.params).weight) as Weight;
-  if (!WEIGHTS.has(weight)) throw notFound("Peso de fonte indisponível.");
+  if (!WEIGHTS.has(weight)) throw notFound("Font weight not available.");
   const buf = await readFile(poppinsFile(weight));
   return new NextResponse(new Uint8Array(buf), {
     headers: {

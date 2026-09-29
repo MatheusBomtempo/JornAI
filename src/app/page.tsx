@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
 export default function Home() {
-  // O middleware cuida de mandar pro /login quando não há sessão.
+  // The middleware takes care of sending to /login when there is no session.
   redirect("/dashboard");
 }

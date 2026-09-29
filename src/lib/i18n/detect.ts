@@ -1,9 +1,20 @@
+import { getConfiguredLanguage } from "../language/config";
 import type { Locale } from "./config";
 
 /**
- * Geo (header `x-vercel-ip-country`, só existe em deploy na Vercel):
- * Brasil -> pt; qualquer outro país (EUA, Europa, etc.) -> en. É o pedido
- * do dono: inglês no IP americano/europeu, português só no Brasil.
+ * APP_LANGUAGE, when set explicitly, is also the default interface language:
+ * a deployment that works in Portuguese should open in Portuguese for
+ * everyone, wherever they connect from. Each person can still switch it with
+ * the language switcher (that choice is stored in the cookie).
+ */
+export function localeFromEnv(): Locale | null {
+  return getConfiguredLanguage();
+}
+
+/**
+ * Geo (`x-vercel-ip-country` header, only present on Vercel deployments):
+ * Brazil -> pt; any other country (US, Europe, etc.) -> en. That is the
+ * owner's request: English for US/European IPs, Portuguese only in Brazil.
  */
 export function localeFromCountry(country: string | null | undefined): Locale | null {
   if (!country) return null;
@@ -11,8 +22,9 @@ export function localeFromCountry(country: string | null | undefined): Locale | 
 }
 
 /**
- * Fallback pra quando não há geo (localhost, preview sem Vercel): usa o
- * idioma do navegador. Só português entra como "pt" — o resto vira inglês.
+ * Fallback for when there is no geo (localhost, preview outside Vercel): uses
+ * the browser language. Only Portuguese counts as "pt" — everything else
+ * becomes English.
  */
 export function localeFromAcceptLanguage(header: string | null | undefined): Locale | null {
   if (!header) return null;

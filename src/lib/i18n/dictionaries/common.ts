@@ -1,4 +1,4 @@
-/** Rótulos de domínio (status do post, papel do usuário, tipo de crédito) usados em várias telas. */
+/** Domain labels (post status, user role, credit type) used across several screens. */
 export const common = {
   pt: {
     cancel: "Cancelar",

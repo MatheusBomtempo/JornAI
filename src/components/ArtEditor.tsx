@@ -42,25 +42,26 @@ type Offset = { offsetX: number; offsetY: number };
 type TextKind = "title" | "subtitle";
 
 /**
- * URL exclusiva pro canvas (Fabric carrega com crossOrigin "anonymous"). A
- * mesma imagem aparece na tela em <img> comuns (miniaturas do template e das
- * fotos), carregadas SEM CORS — e o R2 não manda `Vary: Origin` nessa
- * resposta, então o navegador reaproveitava a cópia sem CORS pro canvas e
- * bloqueava. Em produção o editor abria só com a foto: sem a moldura e sem
- * título/subtítulo (local não aparece: lá tudo é mesma origem). Um query
- * param vira outra entrada de cache; o R2 ignora e serve o mesmo arquivo.
+ * URL exclusive to the canvas (Fabric loads with crossOrigin "anonymous"). The
+ * same image shows up on screen in plain <img> tags (template and photo
+ * thumbnails), loaded WITHOUT CORS — and R2 does not send `Vary: Origin` on
+ * that response, so the browser reused the non-CORS copy for the canvas and
+ * blocked it. In production the editor opened with only the photo: no frame and
+ * no title/subtitle (locally it does not show up: there everything is the same
+ * origin). A query param becomes another cache entry; R2 ignores it and serves
+ * the same file.
  */
 function canvasUrl(url: string): string {
   return `${url}${url.includes("?") ? "&" : "?"}cors=1`;
 }
 
-// ── Texto idêntico à arte final ──────────────────────────────
-// O título/subtítulo do editor usa o MESMO layout vetorial do render do
-// servidor (layoutText, em render/text-svg.ts) com o MESMO arquivo da
-// Poppins (servido por /api/fonts/poppins/[peso]). Antes era um Textbox do
-// Fabric: métricas próprias e sem encolher a fonte — título longo quebrava
-// em 3 linhas e encostava no subtítulo, enquanto a arte da revisão (que
-// encolhe pra caber no slot) saía normal.
+// ── Text identical to the final art ──────────────────────────
+// The editor's title/subtitle uses the SAME vector layout as the server render
+// (layoutText, in render/text-svg.ts) with the SAME Poppins file (served by
+// /api/fonts/poppins/[weight]). Before it was a Fabric Textbox: its own metrics
+// and no font shrinking — a long title wrapped to 3 lines and touched the
+// subtitle, while the review art (which shrinks to fit the slot) came out
+// normal.
 
 const fontPromises = new Map<Weight, Promise<Font | null>>();
 const loadedFonts = new Map<Weight, Font>();
@@ -75,14 +76,14 @@ function loadEditorFont(weight: Weight): Promise<Font | null> {
           fetch(`/api/fonts/poppins/${weight}`),
         ]);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        // opentype.js é CommonJS: o bundler pode entregar em `default` ou não.
+        // opentype.js is CommonJS: the bundler may deliver it in `default` or not.
         const parse = (mod.default ?? mod).parse as (buf: ArrayBuffer) => Font;
         const font = parse(await res.arrayBuffer());
         loadedFonts.set(weight, font);
         return font;
       } catch (err) {
-        console.warn(`[JornAI] Fonte Poppins ${weight} não carregou no editor:`, err);
-        fontPromises.delete(weight); // tenta de novo na próxima montagem
+        console.warn(`[JornAI] Poppins font ${weight} did not load in the editor:`, err);
+        fontPromises.delete(weight); // tries again on the next mount
         return null;
       }
     })();
@@ -92,9 +93,9 @@ function loadEditorFont(weight: Weight): Promise<Font | null> {
 }
 
 /**
- * Caixa arrastável do tamanho EXATO do slot (mesma geometria que o render
- * usa pra posicionar e travar o texto — ver offsetSlot), que desenha por
- * dentro os glifos calculados pelo layoutText.
+ * Draggable box of the EXACT size of the slot (same geometry the render uses to
+ * position and clamp the text — see offsetSlot), which draws inside it the
+ * glyphs computed by layoutText.
  */
 function makeTextHandle(
   fabric: typeof import("fabric"),
@@ -119,9 +120,8 @@ function makeTextHandle(
     lockScalingY: true,
     lockRotation: true,
     borderColor,
-    // Sem cache: o cache do Fabric recorta no tamanho da caixa, e a descida
-    // de letras da última linha (g, p, ç) pode passar um pouco do slot —
-    // igual acontece na arte final.
+    // No cache: Fabric's cache crops to the box size, and the descenders of the
+    // last line (g, p, ç) may go slightly past the slot — just like in the final art.
     objectCaching: false,
   });
   handle.jornaiText = { glyphs: [] as { path: Path2D; x: number; y: number }[], slot, dispScale, fallback: "" };
@@ -139,7 +139,7 @@ function makeTextHandle(
         ctx.restore();
       }
     } else if (t.fallback) {
-      // Só se a fonte não carregou: mostra o texto aproximado em vez de nada.
+      // Only if the font did not load: shows approximate text instead of nothing.
       ctx.font = `${t.slot.weight} ${t.slot.fontSize}px Poppins`;
       ctx.textBaseline = "top";
       ctx.fillText(t.fallback, 0, 0, t.slot.width);
@@ -198,7 +198,7 @@ export function ArtEditor({ postId, photos, templates, initial, onSaved }: Props
     nH: number;
   } | null>(null);
 
-  // Refs persistem o ajuste entre reconstruções do canvas (troca de foto/template).
+  // Refs persist the adjustment across canvas rebuilds (photo/template switch).
   const transformRef = useRef<Transform>(
     initial?.photoTransform ?? { offsetX: 0, offsetY: 0, scale: 1 },
   );
@@ -268,7 +268,7 @@ export function ArtEditor({ postId, photos, templates, initial, onSaved }: Props
     };
   }, []);
 
-  /** Trava a caixa de texto dentro do canvas — mesma regra do render final (offsetSlot). */
+  /** Clamps the text box inside the canvas — same rule as the final render (offsetSlot). */
   const clampTextBox = useCallback((box: any, slotDef: Slot) => {
     const r = fx.current;
     if (!r || !box) return;
@@ -284,7 +284,7 @@ export function ArtEditor({ postId, photos, templates, initial, onSaved }: Props
     box.setCoords();
   }, [displayW, template]);
 
-  /** Lê o deslocamento atual de um texto em relação à posição padrão do template. */
+  /** Reads the current offset of a text relative to the template's default position. */
   const readTextOffset = useCallback(
     (kind: TextKind): Offset => {
       const r = fx.current;
@@ -301,13 +301,13 @@ export function ArtEditor({ postId, photos, templates, initial, onSaved }: Props
     [template],
   );
 
-  // (Re)constrói o canvas
+  // (Re)builds the canvas
   useEffect(() => {
     if (!canvasEl.current || !template || !photo || displayW <= 0) return;
     let dead = false;
 
     (async () => {
-      // Slots com os mesmos padrões do render do servidor (peso, entrelinha…).
+      // Slots with the same defaults as the server render (weight, line height…).
       const titleSlot = textSlotSchema.parse(template.titleSlot);
       const subtitleSlot = template.subtitleSlot ? textSlotSchema.parse(template.subtitleSlot) : null;
       const [fabric] = await Promise.all([
@@ -374,9 +374,9 @@ export function ArtEditor({ postId, photos, templates, initial, onSaved }: Props
       });
       canvas.add(img);
 
-      // Se a moldura falhar por qualquer outro motivo, o editor segue sem ela
-      // em vez de abortar aqui — antes, o título e o subtítulo (adicionados
-      // logo abaixo) também sumiam e não havia o que arrastar.
+      // If the frame fails for any other reason, the editor carries on without it
+      // instead of aborting here — before, the title and subtitle (added right
+      // below) also vanished and there was nothing to drag.
       try {
         const overlay = await fabric.FabricImage.fromURL(canvasUrl(template.overlayAssetUrl), {
           crossOrigin: "anonymous",
@@ -389,13 +389,12 @@ export function ArtEditor({ postId, photos, templates, initial, onSaved }: Props
         });
         canvas.add(overlay);
       } catch (err) {
-        console.warn("[JornAI] Moldura do template não carregou no editor:", err);
+        console.warn("[JornAI] Template frame did not load in the editor:", err);
       }
 
-      // Texto arrastável — só MOVE (sem redimensionar/rotacionar, pra manter
-      // fonte e largura do template). O deslocamento é salvo por post; o
-      // template em si nunca muda. Desenhado com o layout da arte final —
-      // ver makeTextHandle.
+      // Draggable text — only MOVES (no resizing/rotating, to keep the template's
+      // font and width). The offset is saved per post; the template itself never
+      // changes. Drawn with the final art layout — see makeTextHandle.
       const titleBox = makeTextHandle(fabric, titleSlot, dispScale, titleOffsetRef.current, "#f59e0b");
       setHandleText(titleBox, title);
       canvas.add(titleBox);
@@ -446,8 +445,8 @@ export function ArtEditor({ postId, photos, templates, initial, onSaved }: Props
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [photoId, templateId, displayW]);
 
-  // Texto em tempo real no preview (mesmo layout da arte final, inclusive o
-  // encolher/"…" quando não cabe no slot).
+  // Live text in the preview (same layout as the final art, including the
+  // shrink/"…" when it does not fit the slot).
   useEffect(() => {
     const r = fx.current;
     if (r?.titleBox) {
@@ -484,7 +483,7 @@ export function ArtEditor({ postId, photos, templates, initial, onSaved }: Props
     r.canvas.renderAll();
   }
 
-  /** Volta o título ou o subtítulo pra posição padrão do template. */
+  /** Puts the title or subtitle back at the template's default position. */
   function resetTextPosition(kind: TextKind) {
     const r = fx.current;
     const slotDef = kind === "title" ? template?.titleSlot : template?.subtitleSlot;
@@ -502,8 +501,8 @@ export function ArtEditor({ postId, photos, templates, initial, onSaved }: Props
   async function save() {
     if (!template || !photo) return;
     setSaving(true);
-    // Loading/erro/sucesso vão pro modal (ActionOverlay) — ele sobrevive ao
-    // unmount deste editor quando o post passa pra revisão.
+    // Loading/error/success go to the modal (ActionOverlay) — it survives this
+    // editor's unmount when the post moves on to review.
     const result = await run({
       title: dict.artEditor.savingButton,
       success: dict.artEditor.doneMessage,

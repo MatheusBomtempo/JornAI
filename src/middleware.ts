@@ -1,11 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { SESSION_COOKIE, verifySession } from "./lib/session";
 import { DEFAULT_LOCALE, LOCALE_COOKIE, LOCALE_COOKIE_MAX_AGE, isLocale } from "./lib/i18n/config";
-import { localeFromAcceptLanguage, localeFromCountry } from "./lib/i18n/detect";
+import { localeFromAcceptLanguage, localeFromCountry, localeFromEnv } from "./lib/i18n/detect";
 
 /**
- * Protege as páginas do app: sem sessão -> /login; com sessão -> não deixa
- * voltar pro /login. As rotas de API cuidam da própria auth (requireUser).
+ * Protects the app pages: no session -> /login; with a session -> cannot go
+ * back to /login. API routes handle their own auth (requireUser).
  */
 const PUBLIC_PATHS = ["/login"];
 const ONBOARDING_PATH = "/onboarding";
@@ -17,10 +17,11 @@ export async function middleware(req: NextRequest) {
 
   const isPublic = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
   const isOnboarding = pathname.startsWith(ONBOARDING_PATH);
-  // `undefined` = cookie assinado antes deste campo existir (sessão antiga);
-  // trata como "tem empresa" até a pessoa logar de novo — só `null` (claim
-  // explícita, sessão nova) força o onboarding. Evita deslogar/travar quem
-  // já estava com sessão válida quando este campo foi introduzido.
+  // `undefined` = cookie signed before this field existed (old session);
+  // treated as "has a company" until the person logs in again — only `null`
+  // (explicit claim, new session) forces onboarding. Avoids logging out or
+  // locking anyone who already had a valid session when this field was
+  // introduced.
   const missingCompany = session?.companyId === null;
 
   let response: NextResponse;
@@ -36,13 +37,13 @@ export async function middleware(req: NextRequest) {
     url.search = "";
     response = NextResponse.redirect(url);
   } else if (session && missingCompany && !isOnboarding) {
-    // Primeiro login do admin sem empresa ainda: só o onboarding é alcançável.
+    // First login of an admin with no company yet: only onboarding is reachable.
     const url = req.nextUrl.clone();
     url.pathname = ONBOARDING_PATH;
     url.search = "";
     response = NextResponse.redirect(url);
   } else if (session && !missingCompany && isOnboarding) {
-    // Já tem empresa — onboarding não faz mais sentido.
+    // Already has a company — onboarding no longer makes sense.
     const url = req.nextUrl.clone();
     url.pathname = "/dashboard";
     url.search = "";
@@ -51,12 +52,14 @@ export async function middleware(req: NextRequest) {
     response = NextResponse.next();
   }
 
-  // Idioma da interface: só decide no 1º acesso (sem cookie ainda) — depois
-  // disso, o valor gravado (detectado ou escolhido à mão) manda. Geo da
-  // Vercel tem prioridade (só existe em deploy); Accept-Language cobre
-  // localhost; sem sinal nenhum, cai em inglês (ver DEFAULT_LOCALE).
+  // Interface language: only decided on the 1st visit (no cookie yet) —
+  // after that, the stored value (detected or picked by hand) rules. An
+  // explicit APP_LANGUAGE comes first; then Vercel geo (only exists on
+  // deployments); Accept-Language covers localhost; with no signal at all it
+  // falls back to English (see DEFAULT_LOCALE).
   if (!isLocale(req.cookies.get(LOCALE_COOKIE)?.value)) {
     const locale =
+      localeFromEnv() ??
       localeFromCountry(req.headers.get("x-vercel-ip-country")) ??
       localeFromAcceptLanguage(req.headers.get("accept-language")) ??
       DEFAULT_LOCALE;
@@ -71,6 +74,6 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  // Aplica a tudo, menos assets estáticos, uploads e as rotas de API.
+  // Applies to everything except static assets, uploads and the API routes.
   matcher: ["/((?!api|_next/static|_next/image|uploads|favicon.ico|.*\\.png$).*)"],
 };

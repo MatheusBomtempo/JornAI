@@ -1,10 +1,10 @@
--- JornAI — bootstrap do banco de desenvolvimento (alternativa ao Docker).
+-- JornAI — development database bootstrap (alternative to Docker).
 --
--- Rode UMA vez como superusuário (o psql vai pedir a senha do 'postgres'):
+-- Run ONCE as a superuser (psql will ask for the 'postgres' password):
 --   psql -U postgres -h localhost -f scripts/init-db.sql
 --
--- Cria o papel 'jornai' (senha 'jornai') e o banco 'jornai'. Idempotente:
--- pode rodar de novo sem erro se já existirem.
+-- Creates the 'jornai' role (password 'jornai') and the 'jornai' database. Idempotent:
+-- it can be run again without error if they already exist.
 
 SELECT 'CREATE ROLE jornai LOGIN PASSWORD ''jornai'''
 WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'jornai')\gexec
@@ -12,7 +12,7 @@ WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'jornai')\gexec
 SELECT 'CREATE DATABASE jornai OWNER jornai'
 WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'jornai')\gexec
 
--- Garante que o usuário 'jornai' consegue criar as tabelas no schema public.
+-- Makes sure the 'jornai' user can create tables in the public schema.
 \connect jornai
 GRANT ALL ON SCHEMA public TO jornai;
 ALTER SCHEMA public OWNER TO jornai;

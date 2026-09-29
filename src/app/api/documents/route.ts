@@ -8,24 +8,24 @@ const PDF_TYPES = new Set(["application/pdf"]);
 const TXT_TYPES = new Set(["text/plain", "text/markdown"]);
 
 /**
- * POST /documents — recebe um PDF (boletim de ocorrência, nota oficial,
- * matéria) ou .txt e devolve o texto extraído, que o jornalista anexa
- * à pauta como material de apoio para a IA.
+ * POST /documents — receives a PDF (police report, official statement,
+ * article) or .txt and returns the extracted text, which the reporter attaches
+ * to the story as supporting material for the AI.
  *
- * O arquivo não é armazenado: guardamos apenas o texto, junto do post.
+ * The file is not stored: we only keep the text, together with the post.
  */
 export const POST = route(async (req: NextRequest) => {
   await requireUser();
 
   const form = await req.formData();
   const file = form.get("file");
-  if (!(file instanceof File)) throw badRequest("Campo 'file' ausente.");
-  if (file.size > MAX_BYTES) throw badRequest("O arquivo passa de 20 MB.");
+  if (!(file instanceof File)) throw badRequest("Missing 'file' field.");
+  if (file.size > MAX_BYTES) throw badRequest("The file is larger than 20 MB.");
 
   const isPdf = PDF_TYPES.has(file.type) || file.name.toLowerCase().endsWith(".pdf");
   const isTxt = TXT_TYPES.has(file.type) || /\.(txt|md)$/i.test(file.name);
   if (!isPdf && !isTxt) {
-    throw badRequest("Formato não suportado. Envie um PDF (ou .txt).");
+    throw badRequest("Unsupported format. Send a PDF (or .txt).");
   }
 
   const buffer = Buffer.from(await file.arrayBuffer());

@@ -4,10 +4,10 @@ import { regenerateSchema } from "@/lib/validation";
 import { regeneratePost } from "@/lib/services/posts";
 import { ok, route } from "@/lib/http";
 
-// Mesma corrente de IA de POST /posts — ver maxDuration lá pro motivo.
+// Same AI chain as POST /posts — see maxDuration there for the reason.
 export const maxDuration = 60;
 
-// POST /posts/:id/regenerate — novo ciclo de IA (nova versão, mesmas fotos)
+// POST /posts/:id/regenerate — new AI cycle (new version, same photos)
 export const POST = route(
   async (req: NextRequest, ctx: { params: Promise<{ id: string }> }) => {
     const user = await requireCompanyUser();

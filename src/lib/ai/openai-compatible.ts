@@ -1,27 +1,27 @@
-import { buildUserPrompt, SYSTEM_PROMPT } from "./prompt";
+import { buildUserPrompt, buildSystemPrompt } from "./prompt";
 import { parseGeneratedContent } from "./parse";
 import type { AiProvider, GenerateInput, GeneratedContent } from "./types";
 
 export interface OpenAICompatibleConfig {
   name: string;
-  baseUrl: string; // ex.: https://openrouter.ai/api/v1
+  baseUrl: string; // e.g. https://openrouter.ai/api/v1
   apiKey: string;
   model: string;
-  /** Cabeçalhos extras (OpenRouter recomenda HTTP-Referer e X-Title). */
+  /** Extra headers (OpenRouter recommends HTTP-Referer and X-Title). */
   extraHeaders?: Record<string, string>;
   /**
-   * Timeout da chamada, em ms (padrão 25s). Importante quando este provider
-   * faz parte de uma corrente de fallback: alguns modelos "raciocinadores"
-   * (ex.: gpt-oss, glm) podem levar minutos ou nunca terminar — sem timeout,
-   * eles travariam a corrente inteira em vez de passar pro próximo.
+   * Call timeout in ms (default 25s). Important when this provider is part of
+   * a fallback chain: some "reasoning" models (e.g. gpt-oss, glm) can take
+   * minutes or never finish — without a timeout they would stall the whole
+   * chain instead of handing over to the next provider.
    */
   timeoutMs?: number;
 }
 
 /**
- * Provider de texto para qualquer API compatível com o formato de
- * chat completions da OpenAI — inclui OpenRouter, OpenAI e a maioria dos
- * gateways. O prompt já pede JSON estrito; o parser tolera variações.
+ * Text provider for any API compatible with the OpenAI chat completions
+ * format — including OpenRouter, OpenAI and most gateways. The parser
+ * tolerates format variations in the model's answer.
  */
 export class OpenAICompatibleProvider implements AiProvider {
   readonly name: string;
@@ -30,7 +30,7 @@ export class OpenAICompatibleProvider implements AiProvider {
   constructor(cfg: OpenAICompatibleConfig) {
     if (!cfg.apiKey) {
       throw new Error(
-        `${cfg.name}: chave de API ausente. Configure a variável de ambiente correspondente.`,
+        `${cfg.name}: API key is missing. Set the matching environment variable.`,
       );
     }
     this.name = cfg.name;
@@ -57,20 +57,20 @@ export class OpenAICompatibleProvider implements AiProvider {
         body: JSON.stringify({
           model: this.cfg.model,
           temperature: 0.4,
-          // Legendas de 3-5 parágrafos + créditos + hashtags podem passar de
-          // 1024 tokens e cortar no meio da frase — dá folga.
+          // A 3-5 paragraph caption plus credits and hashtags can exceed 1024
+          // tokens and get cut mid-sentence — leave some headroom.
           max_tokens: 1600,
           messages: [
-            { role: "system", content: SYSTEM_PROMPT },
+            { role: "system", content: buildSystemPrompt() },
             { role: "user", content: buildUserPrompt(input) },
           ],
         }),
       });
     } catch (err) {
       if ((err as Error).name === "AbortError") {
-        throw new Error(`${this.cfg.name}: tempo esgotado (modelo demorou demais a responder).`);
+        throw new Error(`${this.cfg.name}: timed out (the model took too long to answer).`);
       }
-      throw new Error(`${this.cfg.name}: falha de conexão (${(err as Error).message}).`);
+      throw new Error(`${this.cfg.name}: connection failed (${(err as Error).message}).`);
     } finally {
       clearTimeout(timeout);
     }
@@ -85,9 +85,9 @@ export class OpenAICompatibleProvider implements AiProvider {
 
     const content: unknown = data?.choices?.[0]?.message?.content;
     if (typeof content !== "string" || !content.trim()) {
-      // Alguns modelos "raciocinadores" só preenchem reasoning_content e
-      // deixam content vazio/nulo — sem resposta final utilizável.
-      throw new Error(`${this.cfg.name}: resposta sem conteúdo de texto.`);
+      // Some "reasoning" models only fill reasoning_content and leave content
+      // empty/null — no usable final answer.
+      throw new Error(`${this.cfg.name}: response has no text content.`);
     }
     return {
       ...parseGeneratedContent(content),

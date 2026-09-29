@@ -1,18 +1,17 @@
 import "server-only";
 import sharp from "sharp";
 
-/** A arte final nunca passa de ~1080-1350px de lado — dá folga sem exagerar. */
+/** The final art never exceeds ~1080-1350px on a side — leaves headroom without overdoing it. */
 export const PHOTO_MAX_DIMENSION = 1600;
 
 /**
- * Recomprime uma foto de origem pro padrão usado no storage (JPEG, lado
- * máximo 1600px, sem EXIF). Compartilhado por /api/upload (envio manual) e
- * pela importação do Pexels (ver services/photo-search.ts) — mesmo destino,
- * mesmo tratamento.
+ * Recompresses a source photo to the standard used in storage (JPEG, max side
+ * 1600px, no EXIF). Shared by /api/upload (manual upload) and by the Pexels
+ * import (see services/photo-search.ts) — same destination, same treatment.
  */
 export async function compressSourcePhoto(raw: Buffer): Promise<Buffer> {
   return sharp(raw)
-    .rotate() // auto-orienta pelo EXIF e, ao (re)codificar, descarta o EXIF (inclusive GPS)
+    .rotate() // auto-orients by EXIF and, when (re)encoding, drops the EXIF (GPS included)
     .resize({
       width: PHOTO_MAX_DIMENSION,
       height: PHOTO_MAX_DIMENSION,

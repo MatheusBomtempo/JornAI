@@ -2,10 +2,11 @@ import { TITLE_MAX, SUBTITLE_MAX } from "../render/slots";
 import type { GeneratedContent } from "./types";
 
 /**
- * Lê a resposta do modelo. O formato principal é delimitado por marcadores
- * ([TITULO]/[SUBTITULO]/[LEGENDA]) porque a legenda tem vários parágrafos —
- * texto longo com quebras de linha faz muitos modelos produzirem JSON inválido.
- * JSON continua aceito como alternativa, para compatibilidade.
+ * Reads the model's answer. The main format is delimited by markers
+ * ([TITLE]/[SUBTITLE]/[CAPTION]) because the caption has several paragraphs —
+ * long text with line breaks makes many models produce invalid JSON. JSON is
+ * still accepted as an alternative, for compatibility. The markers of the
+ * original Portuguese prompt ([TITULO]/[SUBTITULO]/[LEGENDA]) are accepted too.
  */
 export function parseGeneratedContent(raw: string): GeneratedContent {
   const cleaned = stripCodeFences(raw).trim();
@@ -13,32 +14,32 @@ export function parseGeneratedContent(raw: string): GeneratedContent {
   const result = parseDelimited(cleaned) ?? parseJson(cleaned);
   if (!result) {
     throw new Error(
-      `A IA respondeu num formato inesperado. Início da resposta: "${cleaned.slice(0, 160)}…"`,
+      `The AI answered in an unexpected format. Start of the answer: "${cleaned.slice(0, 160)}…"`,
     );
   }
 
   const { title, subtitle, instagramCaption, imageSuggestions } = result;
   if (!title || !instagramCaption) {
     throw new Error(
-      "Resposta da IA incompleta (faltou o título ou a legenda). Tente gerar de novo.",
+      "The AI answer is incomplete (the title or the caption is missing). Try generating again.",
     );
   }
 
   return {
-    // Rede de segurança: o limite de caracteres é do layout da arte.
+    // Safety net: the character limit comes from the art layout.
     title: clip(title, TITLE_MAX),
     subtitle: clip(subtitle, SUBTITLE_MAX),
     instagramCaption,
-    // Auxiliar — se a IA não trouxer (ou trouxer errado), segue sem sugestão
-    // em vez de inventar uma; nunca bloqueia a geração do post por isso.
+    // Auxiliary — if the AI does not bring it (or brings it wrong), carry on
+    // without a suggestion instead of inventing one; it never blocks the post.
     imageSuggestions: imageSuggestions.slice(0, 2),
   };
 }
 
-// ── Formato delimitado (principal) ───────────────────────────
+// ── Delimited format (main) ──────────────────────────────────
 function parseDelimited(s: string): GeneratedContent | null {
   const re =
-    /\[\s*T[ÍI]TULO\s*\]([\s\S]*?)\[\s*SUBT[ÍI]TULO\s*\]([\s\S]*?)\[\s*LEGENDA\s*\]([\s\S]*?)(?:\[\s*SUGEST[ÕO]ES[_ ]IMAGEM\s*\]([\s\S]*))?$/i;
+    /\[\s*(?:TITLE|T[ÍI]TULO)\s*\]([\s\S]*?)\[\s*(?:SUBTITLE|SUBT[ÍI]TULO)\s*\]([\s\S]*?)\[\s*(?:CAPTION|LEGENDA)\s*\]([\s\S]*?)(?:\[\s*(?:IMAGE[_ ]SUGGESTIONS|SUGEST[ÕO]ES[_ ]IMAGEM)\s*\]([\s\S]*))?$/i;
   const m = s.match(re);
   if (!m) return null;
   return {
@@ -49,7 +50,7 @@ function parseDelimited(s: string): GeneratedContent | null {
   };
 }
 
-/** Cada linha não vazia é uma sugestão; tira marcadores de lista e aspas. */
+/** Each non-empty line is a suggestion; strips list markers and quotes. */
 function parseSuggestionLines(block: string): string[] {
   return block
     .split("\n")
@@ -58,7 +59,7 @@ function parseSuggestionLines(block: string): string[] {
     .slice(0, 2);
 }
 
-/** Remove parênteses de instrução que alguns modelos copiam do template. */
+/** Removes instruction parentheses that some models copy from the template. */
 function clean(v: string): string {
   return v
     .trim()
@@ -66,7 +67,7 @@ function clean(v: string): string {
     .trim();
 }
 
-// ── JSON (alternativa) ───────────────────────────────────────
+// ── JSON (alternative) ───────────────────────────────────────
 function parseJson(s: string): GeneratedContent | null {
   const jsonText = extractFirstJsonObject(s);
   if (!jsonText) return null;
@@ -75,7 +76,7 @@ function parseJson(s: string): GeneratedContent | null {
   try {
     obj = JSON.parse(jsonText);
   } catch {
-    // Modelos frequentemente deixam quebras de linha cruas dentro das strings.
+    // Models often leave raw line breaks inside the strings.
     try {
       obj = JSON.parse(escapeRawNewlinesInStrings(jsonText));
     } catch {
@@ -149,7 +150,7 @@ function extractFirstJsonObject(s: string): string | null {
       if (depth === 0) return s.slice(start, i + 1);
     }
   }
-  return s.slice(start); // objeto truncado — deixa o JSON.parse decidir
+  return s.slice(start); // truncated object — let JSON.parse decide
 }
 
 // ── util ─────────────────────────────────────────────────────

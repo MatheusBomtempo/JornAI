@@ -1,28 +1,29 @@
 /**
- * Transformações de caixa para o texto da arte. Compartilhado entre o
- * render do servidor (Sharp/opentype) e os previews no cliente (Fabric.js,
- * construtor de template) para garantir que mostram sempre o mesmo resultado.
+ * Case transformations for the art text. Shared between the server render
+ * (Sharp/opentype) and the client previews (Fabric.js, template builder) so
+ * they always show the same result. Uses the locale-independent Unicode case
+ * mappings, which are identical for every supported language.
  */
 export type TextTransform = "none" | "sentence" | "capitalize" | "uppercase";
 
 export function applyTextCase(text: string, transform?: TextTransform): string {
   switch (transform) {
     case "uppercase":
-      return text.toLocaleUpperCase("pt-BR");
+      return text.toUpperCase();
 
     case "capitalize":
-      // Cada Palavra Com Inicial Maiúscula.
+      // Every Word With An Initial Capital.
       return text.replace(
         /(^|\s)(\p{L})/gu,
-        (_m, sep: string, ch: string) => sep + ch.toLocaleUpperCase("pt-BR"),
+        (_m, sep: string, ch: string) => sep + ch.toUpperCase(),
       );
 
     case "sentence": {
-      // Só a primeira letra da frase, resto em minúsculas.
-      const lower = text.toLocaleLowerCase("pt-BR");
+      // Only the first letter of the sentence, the rest in lower case.
+      const lower = text.toLowerCase();
       return lower.replace(
         /^(\s*)(\p{L})/u,
-        (_m, sep: string, ch: string) => sep + ch.toLocaleUpperCase("pt-BR"),
+        (_m, sep: string, ch: string) => sep + ch.toUpperCase(),
       );
     }
 

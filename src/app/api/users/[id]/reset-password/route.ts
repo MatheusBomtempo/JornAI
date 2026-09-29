@@ -6,10 +6,11 @@ import { prisma } from "@/lib/db";
 import { badRequest, notFound, ok, route } from "@/lib/http";
 
 /**
- * POST /users/:id/reset-password — manager/admin geram uma senha nova pro
- * usuário e mandam por e-mail (Gmail). Ninguém vê a senha na tela — nem
- * quem disparou o reset: ela só existe em memória o tempo de gerar o hash
- * e montar o e-mail, nunca é salva em texto puro nem devolvida na resposta.
+ * POST /users/:id/reset-password — manager/admin generate a new password for
+ * the user and send it by email (Gmail). Nobody sees the password on screen —
+ * not even whoever triggered the reset: it only exists in memory for the time
+ * it takes to generate the hash and build the email, and is never stored in
+ * plain text nor returned in the response.
  */
 export const POST = route(
   async (_req: NextRequest, ctx: { params: Promise<{ id: string }> }) => {
@@ -22,7 +23,7 @@ export const POST = route(
       select: { id: true, name: true, email: true, companyId: true },
     });
     if (!target || target.companyId !== actor.companyId) {
-      throw notFound("Usuário não encontrado.");
+      throw notFound("User not found.");
     }
 
     const tempPassword = generateTempPassword();
@@ -35,14 +36,15 @@ export const POST = route(
         password: tempPassword,
       });
     } catch (err) {
-      // Motivo real na tela pra quem disparou (é sempre admin/manager, não
-      // tem risco de vazar detalhe interno pra alguém sem permissão) — sem
-      // isso só dava pra saber a causa lendo o log do servidor.
-      throw badRequest(`Falha ao enviar e-mail: ${(err as Error).message}`);
+      // Real reason on screen for whoever triggered it (always admin/manager, so
+      // there is no risk of leaking an internal detail to someone without
+      // permission) — without it the cause could only be known by reading the
+      // server log.
+      throw badRequest(`Failed to send the email: ${(err as Error).message}`);
     }
 
-    // Só atualiza o hash DEPOIS do e-mail sair — se o envio falhar, a senha
-    // antiga continua valendo (evita trocar acesso sem a pessoa saber a nova).
+    // Only updates the hash AFTER the email goes out — if the send fails, the old
+    // password keeps working (avoids changing access without the person knowing the new one).
     await prisma.user.update({
       where: { id },
       data: {

@@ -1,56 +1,59 @@
-# Plataforma de publicação rápida no Instagram com IA — Especificação técnica
+# Fast Instagram publishing platform with AI — Technical specification
 
-## Visão geral
+## Overview
 
-Ferramenta web para uma redação de jornal publicar posts urgentes no feed do Instagram,
-com o mínimo de fricção possível: jornalista manda a fonte (foto, texto ou link),
-IA gera o texto (título, notícia curta, legenda, sugestão de texto da arte), o próprio
-jornalista ajusta a foto e o texto dentro de um template fixo da marca, um editor/gerente
-revisa (aprova, recusa, pede pra refazer com IA, ou edita manualmente) e só depois disso
-o post vai pro Instagram.
+A web tool for a newspaper newsroom to publish urgent posts to the Instagram feed with as
+little friction as possible: a reporter sends the source (photo, text or link), the AI
+generates the text (title, short news, caption, art text suggestion), the reporter
+adjusts the photo and the text inside a fixed brand template, an editor/manager reviews
+(approves, rejects, asks for a redo with AI, or edits manually) and only after that does
+the post go to Instagram.
 
-**Não é** uma ferramenta de agendamento — é publicação imediata, sob demanda, a qualquer
-hora. **Não há** geração de imagem por IA — a arte final é sempre a composição de uma foto
-real (ajustada manualmente) sobre um template fixo. **Não há**, por enquanto, suporte a
-Stories, vídeo ou múltiplas redes sociais — só feed do Instagram. Multi-rede/vídeo/Stories
-ficam para uma v2.0.
+It is **not** a scheduling tool — publishing is immediate, on demand, at any hour. There is
+**no** AI image generation — the final art is always a real photo (adjusted manually)
+composed over a fixed template. There is **no**, for now, support for Stories, video or
+multiple social networks — only the Instagram feed. Multi-network/video/Stories are left
+for a v2.0.
 
-## Stack recomendada
+The language the product works in (the language of the sources and of the generated
+posts) is chosen per deployment with the `APP_LANGUAGE` environment variable (`pt` or `en`).
+See `src/lib/language`.
 
-- **Frontend:** Next.js (React), web responsivo — mobile-first mas sem exigência de app nativo.
-- **Editor de arte:** Fabric.js (canvas interativo, open source, MIT) — foto arrastável/com
-  zoom dentro de uma área fixa, overlay do template travado, texto editável só no conteúdo.
-- **Backend:** API própria (Next.js API routes ou serviço separado em Node).
-- **Banco:** PostgreSQL.
-- **Render final da arte:** Sharp (Node), server-side, a partir dos mesmos parâmetros
-  salvos pelo editor (não a partir do canvas do navegador — garante qualidade e
-  reprodutibilidade).
-- **IA:** um modelo de texto (GPT-4o/Gemini/Claude) — só texto, sem visão nem geração de imagem.
-- **Publicação:** Instagram Graph API (Meta), direto, sem biblioteca de terceiros.
-- **Storage de mídia:** S3/R2/Supabase Storage (a arte final precisa estar numa URL pública
-  HTTPS antes de publicar).
+## Recommended stack
 
-## Fluxo (state machine)
+- **Frontend:** Next.js (React), responsive web — mobile-first but with no native app requirement.
+- **Art editor:** Fabric.js (interactive canvas, open source, MIT) — a photo that can be
+  dragged/zoomed inside a fixed area, a locked template overlay, text editable only in its content.
+- **Backend:** own API (Next.js API routes or a separate Node service).
+- **Database:** PostgreSQL.
+- **Final art render:** Sharp (Node), server-side, from the same parameters saved by the
+  editor (not from the browser canvas — it guarantees quality and reproducibility).
+- **AI:** a text model (GPT-4o/Gemini/Claude) — text only, no vision or image generation.
+- **Publishing:** Instagram Graph API (Meta), directly, with no third-party library.
+- **Media storage:** S3/R2/Supabase Storage (the final art has to be at a public HTTPS URL
+  before publishing).
+
+## Flow (state machine)
 
 ```
-CAPTURA (jornalista) → texto/foto/link
+CAPTURE (reporter) → text/photo/link
    ↓
-PROCESSANDO_IA (só texto: título, notícia curta, legenda, sugestão de texto da arte)
+PROCESSING_AI (text only: title, short news, caption, art text suggestion)
    ↓
-EDITOR DE ARTE (Fabric.js) — jornalista ajusta foto (posição/zoom) e o texto sugerido
+ART EDITOR (Fabric.js) — the reporter adjusts the photo (position/zoom) and the suggested text
    ↓
-EM_REVISAO (editor/gerente vê preview estilo Instagram)
+IN_REVIEW (editor/manager sees an Instagram-style preview)
    │
-   ├── Aprovar  → publica no Instagram
-   ├── Recusar  → arquiva com motivo
-   ├── Refazer  → novo ciclo de IA (nova versão)
-   └── Editar   → edição manual → volta pra revisão
+   ├── Approve  → publishes to Instagram
+   ├── Reject   → archives with a reason
+   ├── Redo     → new AI cycle (new version)
+   └── Edit     → manual edit → goes back to review
 ```
 
-Cada ciclo (IA ou edição manual) gera uma **nova versão**, nunca sobrescreve — isso dá
-histórico/auditoria de graça, sem trabalho extra.
+Each cycle (AI or manual edit) generates a **new version**, never overwrites — that gives
+history/audit for free, with no extra work.
 
-## Schema do banco (PostgreSQL)
+## Database schema (PostgreSQL)
 
 ```sql
 CREATE TYPE user_role AS ENUM ('admin', 'manager', 'staff');
@@ -83,7 +86,7 @@ CREATE TABLE posts (
   source_type     TEXT NOT NULL,        -- 'photo' | 'text' | 'link'
   source_text     TEXT,
   source_url      TEXT,
-  scraped_content TEXT,                 -- texto extraído quando source_type = 'link'
+  scraped_content TEXT,                 -- text extracted when source_type = 'link'
   status          TEXT NOT NULL DEFAULT 'processing_ai',
   created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -92,7 +95,7 @@ CREATE TABLE posts (
 CREATE TABLE post_photos (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   post_id     UUID NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
-  storage_url TEXT NOT NULL,            -- foto original, sem edição
+  storage_url TEXT NOT NULL,            -- original photo, unedited
   order_index INT,
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -101,8 +104,8 @@ CREATE TABLE art_templates (
   id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name              TEXT NOT NULL,
   canvas_width      INT NOT NULL DEFAULT 1080,
-  canvas_height     INT NOT NULL DEFAULT 1080,   -- ou 1350 pro formato 4:5
-  overlay_asset_url TEXT NOT NULL,       -- PNG da moldura/marca d'água, transparente onde a foto entra
+  canvas_height     INT NOT NULL DEFAULT 1080,   -- or 1350 for the 4:5 format
+  overlay_asset_url TEXT NOT NULL,       -- PNG of the frame/watermark, transparent where the photo goes
   photo_slot        JSONB NOT NULL,      -- { x, y, width, height }
   text_slot         JSONB NOT NULL,      -- { x, y, width, height, font, fontSize, color, align }
   is_active         BOOLEAN DEFAULT TRUE,
@@ -110,7 +113,7 @@ CREATE TABLE art_templates (
 );
 
 CREATE TABLE style_reference (
-  id                 INT PRIMARY KEY DEFAULT 1,   -- linha única
+  id                 INT PRIMARY KEY DEFAULT 1,   -- single row
   example_title      TEXT,
   example_short_news TEXT,
   example_caption    TEXT,
@@ -129,9 +132,9 @@ CREATE TABLE post_versions (
   instagram_caption TEXT,
   art_text          TEXT,
   selected_photo_id UUID REFERENCES post_photos(id),
-  photo_transform   JSONB,              -- { offsetX, offsetY, scale } do editor Fabric.js
+  photo_transform   JSONB,              -- { offsetX, offsetY, scale } from the Fabric.js editor
   art_template_id   UUID REFERENCES art_templates(id),
-  rendered_art_url  TEXT,               -- resultado do render final (Sharp)
+  rendered_art_url  TEXT,               -- result of the final render (Sharp)
   edited_by         UUID REFERENCES users(id),
   created_at        TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -157,71 +160,71 @@ CREATE TABLE publications (
 );
 ```
 
-## Endpoints da API
+## API endpoints
 
 ```
 POST   /posts                          → { source_type, source_text?, source_url?, photos[] }
-                                          (dispara IA: só texto — title, short_news, caption, art_text sugerido)
+                                          (triggers the AI: text only — title, short_news, caption, suggested art_text)
 
-POST   /posts/:id/art                  → salva photo_transform + art_text ajustado no editor
-                                          → dispara render final no servidor (Sharp) → rendered_art_url
+POST   /posts/:id/art                  → saves photo_transform + art_text adjusted in the editor
+                                          → triggers the final render on the server (Sharp) → rendered_art_url
 
-POST   /posts/:id/regenerate           → novo ciclo de IA (nova versão, mesmas fotos)
-PATCH  /posts/:id/versions/:vid        → edição manual de texto
+POST   /posts/:id/regenerate           → new AI cycle (new version, same photos)
+PATCH  /posts/:id/versions/:vid        → manual text edit
 
-POST   /posts/:id/versions/:vid/approve → dispara publicação no Instagram
-POST   /posts/:id/versions/:vid/reject  → decision = rejected + motivo obrigatório
+POST   /posts/:id/versions/:vid/approve → triggers publishing to Instagram
+POST   /posts/:id/versions/:vid/reject  → decision = rejected + mandatory reason
 
-GET    /posts / /posts/:id             → listagem e detalhe (com versões e decisões)
+GET    /posts / /posts/:id             → listing and detail (with versions and decisions)
 
-GET/PUT  /style-reference              → o exemplo de texto padrão usado como referência na IA
-GET/POST /art-templates                → cadastro do(s) template(s) fixo(s)
+GET/PUT  /style-reference              → the default text example used as a reference by the AI
+GET/POST /art-templates                → registration of the fixed template(s)
 
-GET/POST/PATCH /users                  → admin gerencia usuários e papéis
-GET/POST/DELETE /api-keys              → só admin
+GET/POST/PATCH /users                  → admin manages users and roles
+GET/POST/DELETE /api-keys              → admin only
 ```
 
-## Papéis (roles)
+## Roles
 
-| Papel | Permissões |
+| Role | Permissions |
 |---|---|
-| **admin** | Tudo — usuários, chaves de API, templates, style reference, aprovar/publicar |
-| **manager** | Aprovar/recusar/refazer/editar/publicar; editar style reference e templates |
-| **staff** (jornalista) | Envia fontes, edita as próprias submissões antes da aprovação; não aprova nem publica sozinho |
+| **admin** | Everything — users, API keys, templates, style reference, approve/publish |
+| **manager** | Approve/reject/redo/edit/publish; edit style reference and templates |
+| **staff** (reporter) | Submits sources, edits their own submissions before approval; does not approve or publish alone |
 
-## Publicação no Instagram
+## Publishing to Instagram
 
-- API: Instagram Graph API (Meta), fluxo em 2 passos:
-  1. `POST /{ig-user-id}/media` com `image_url` (a arte final, hospedada publicamente) + `caption` → retorna `creation_id`.
-  2. `POST /{ig-user-id}/media_publish` com `creation_id` → retorna o `id` do post publicado.
-- Requisitos: conta Instagram Business/Creator vinculada a uma Página do Facebook, app criado em developers.facebook.com, conta adicionada como **Instagram Tester** dentro do app.
-- **Importante:** como a publicação é só na conta da própria empresa (não em contas de terceiros), o app pode rodar em **modo de desenvolvimento** — não precisa passar pelo App Review do Meta, que só é obrigatório quando o app publica em contas de outras empresas/clientes.
-- Permissão necessária: `instagram_business_content_publish` (nome atual; documentações antigas usam `instagram_content_publish`).
-- Limite: até 100 posts publicados via API por período móvel de 24h por conta.
+- API: Instagram Graph API (Meta), in a 2-step flow:
+  1. `POST /{ig-user-id}/media` with `image_url` (the final art, publicly hosted) + `caption` → returns `creation_id`.
+  2. `POST /{ig-user-id}/media_publish` with `creation_id` → returns the `id` of the published post.
+- Requirements: an Instagram Business/Creator account linked to a Facebook Page, an app created at developers.facebook.com, the account added as an **Instagram Tester** inside the app.
+- **Important:** since publishing is only to the company's own account (not to third-party accounts), the app can run in **development mode** — it does not need to go through Meta's App Review, which is only mandatory when the app publishes to other companies'/clients' accounts.
+- Required permission: `instagram_business_content_publish` (current name; old documentation uses `instagram_content_publish`).
+- Limit: up to 100 posts published via the API per rolling 24h period per account.
 
-## Decisões já validadas (não reabrir sem motivo forte)
+## Decisions already validated (do not reopen without a strong reason)
 
-- Sem agendamento — publicação é sempre imediata, sob demanda.
-- Sem geração de imagem por IA — a IA só gera texto.
-- Sem seleção automática de "melhor foto" — o jornalista escolhe e ajusta manualmente.
-- Sugestões de imagem são só links de busca (Google Imagens / banco gratuito) gerados
-  pela IA junto do texto — nunca escolhem, baixam ou publicam foto sozinhas. Prioridade:
-  1) foto enviada pelo jornalista, 2) foto da fonte original, 3) achada via Google,
-  4) achada em banco gratuito, 5) sem foto. Upload aceita drag & drop de imagem OU PDF
-  em qualquer ponto da tela de captura, com o tipo detectado automaticamente.
-- Sem Canva — o template é reproduzido em código (overlay PNG fixo) e composto via Fabric.js (edição) + Sharp (render final).
-- Style guide simplificado — um único exemplo de referência, não uma biblioteca de exemplos.
-- Três tipos de fonte: foto, texto pronto, link (que precisa de scraping antes de ir pra IA).
-- Três papéis: admin, manager, staff, com separação entre quem cria e quem aprova.
+- No scheduling — publishing is always immediate, on demand.
+- No AI image generation — the AI only generates text.
+- No automatic "best photo" selection — the reporter chooses and adjusts manually.
+- Image suggestions are only search terms (Google Images / free stock library) generated
+  by the AI along with the text — they never choose, download or publish a photo on their own.
+  Priority: 1) photo uploaded by the reporter, 2) photo from the original source, 3) found via
+  Google, 4) found in a free library, 5) no photo. Upload accepts drag & drop of an image OR
+  a PDF anywhere on the capture screen, with the type detected automatically.
+- No Canva — the template is reproduced in code (fixed PNG overlay) and composed via Fabric.js (editing) + Sharp (final render).
+- Simplified style guide — a single reference example, not a library of examples.
+- Three source types: photo, ready-made text, link (which needs scraping before going to the AI).
+- Three roles: admin, manager, staff, with a separation between who creates and who approves.
 
-## Primeiros passos sugeridos pro Claude Code
+## Suggested first steps for Claude Code
 
-1. Inicializar o projeto Next.js + TypeScript + Prisma (ou Drizzle) + PostgreSQL.
-2. Rodar as migrations com o schema acima.
-3. Implementar autenticação simples com roles (NextAuth ou solução própria).
-4. Endpoint `POST /posts` com o pipeline de IA (texto only).
-5. Componente do editor de arte com Fabric.js (foto + overlay fixo + texto editável).
-6. Endpoint de render final com Sharp.
-7. Tela de revisão (mockup de post do Instagram + botões aprovar/recusar/refazer/editar).
-8. Integração com Instagram Graph API (2-step publish).
-9. Painel admin (usuários, papéis, API keys, templates, style reference).
+1. Initialize the Next.js + TypeScript + Prisma (or Drizzle) + PostgreSQL project.
+2. Run the migrations with the schema above.
+3. Implement simple authentication with roles (NextAuth or a custom solution).
+4. `POST /posts` endpoint with the AI pipeline (text only).
+5. Art editor component with Fabric.js (photo + fixed overlay + editable text).
+6. Final render endpoint with Sharp.
+7. Review screen (Instagram post mockup + approve/reject/redo/edit buttons).
+8. Instagram Graph API integration (2-step publish).
+9. Admin panel (users, roles, API keys, templates, style reference).

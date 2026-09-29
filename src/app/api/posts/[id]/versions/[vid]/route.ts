@@ -4,10 +4,10 @@ import { editVersionSchema } from "@/lib/validation";
 import { editVersionManually } from "@/lib/services/posts";
 import { ok, route } from "@/lib/http";
 
-// Pode disparar re-render de vídeo (ffmpeg) + auto-publish — ver approve/route.ts.
+// May trigger a video re-render (ffmpeg) + auto-publish — see approve/route.ts.
 export const maxDuration = 290;
 
-// PATCH /posts/:id/versions/:vid — edição manual de texto (gera nova versão)
+// PATCH /posts/:id/versions/:vid — manual text edit (creates a new version)
 export const PATCH = route(
   async (
     req: NextRequest,

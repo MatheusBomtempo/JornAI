@@ -301,7 +301,7 @@ function TemplatesSection() {
   );
 }
 
-// ── Usuários ─────────────────────────────────────────────────
+// ── Users ────────────────────────────────────────────────────
 interface AdminUser {
   id: string;
   name: string;
@@ -552,12 +552,12 @@ interface CompanyInfo {
 const MAX_LOGO_MB = 5;
 
 /**
- * A logo entra na prévia do Instagram e é gravada no rodapé do vídeo
- * renderizado — é o mesmo campo definido no onboarding, editável aqui depois.
- * As cores da marca alimentam os templates de vídeo (ver
- * buildVideoCardStyles em lib/render/video-layout) — <input type="color">
- * sempre precisa de um hex válido, então os campos começam com o fallback
- * que os templates já usam quando a empresa ainda não escolheu as próprias.
+ * The logo goes into the Instagram preview and is burned into the footer of
+ * the rendered video — it is the same field defined in onboarding, editable
+ * here afterwards. The brand colors feed the video templates (see
+ * buildVideoCardStyles in lib/render/video-layout) — <input type="color">
+ * always needs a valid hex, so the fields start with the fallback the
+ * templates already use when the company has not chosen its own yet.
  */
 function CompanySection() {
   const { dict } = useLocale();
@@ -602,7 +602,7 @@ function CompanySection() {
     try {
       const fd = new FormData();
       fd.append("file", file);
-      fd.append("kind", "overlay"); // preserva transparência — sem recompressão
+      fd.append("kind", "overlay"); // preserves transparency — no recompression
       const { url } = await apiPost<{ url: string }>("/api/upload", fd);
       setLogoUrl(url);
       setSaved(false);
@@ -767,7 +767,7 @@ function ColorField({
   );
 }
 
-// ── Configurações gerais ─────────────────────────────────────
+// ── General settings ─────────────────────────────────────────
 interface AppSettings {
   reviewRequired: boolean;
 }
@@ -843,9 +843,9 @@ function SettingsSection() {
 type ResetScope = "unpublished" | "all";
 
 /**
- * Dois resets da empresa (ver services/data-reset.ts). Cada um só libera o
- * botão final depois de digitar a palavra de confirmação — o servidor
- * confere a mesma palavra, então nem uma chamada acidental à API apaga nada.
+ * Two resets of the company (see services/data-reset.ts). Each one only enables
+ * its final button after typing the confirmation word — the server checks the
+ * same word, so not even an accidental API call deletes anything.
  */
 function DangerZone() {
   const { dict } = useLocale();
@@ -947,7 +947,7 @@ function DangerZone() {
   );
 }
 
-// ── Saldo de IA (créditos no OpenRouter) ─────────────────────
+// ── AI balance (credits on OpenRouter) ───────────────────────
 interface AiBalance {
   provider: "openrouter";
   totalCredits: number;
@@ -972,14 +972,15 @@ type AiBalanceResult =
   | { supported: false; provider: string };
 
 const OPENROUTER_CREDITS_URL = "https://openrouter.ai/settings/credits";
-// Abaixo disso o painel avisa — um post custa centavos, mas quem recarrega
-// é o admin e ele não olha aqui todo dia.
+// Below this the panel warns — a post costs cents, but the one who tops up is
+// the admin and they do not look here every day.
 const LOW_BALANCE_RATIO = 0.2;
 const LOW_BALANCE_USD = 1;
 
 /**
- * Lê o saldo direto na API do OpenRouter (ver services/ai-balance.ts). A
- * chave é global da instalação, então o saldo é o mesmo pra toda empresa.
+ * Reads the balance straight from the OpenRouter API (see
+ * services/ai-balance.ts). The key is global to the installation, so the
+ * balance is the same for every company.
  */
 function BalanceSection() {
   const { dict, locale } = useLocale();
@@ -1004,8 +1005,8 @@ function BalanceSection() {
     load();
   }, []);
 
-  // USD com precisão que acompanha o valor: $4.90 no saldo, mas $0.0011 no
-  // gasto de hoje — com 2 casas o consumo diário apareceria como "$0.00".
+  // USD with precision that follows the value: $4.90 in the balance, but $0.0011
+  // in today's spend — with 2 decimals the daily consumption would show as "$0.00".
   const usd = (v: number) =>
     new Intl.NumberFormat(intlLocale, {
       style: "currency",
@@ -1037,8 +1038,8 @@ function BalanceSection() {
   const remainingRatio = 1 - usedRatio;
   const empty = b.remaining <= 0;
   const low = !empty && (remainingRatio < LOW_BALANCE_RATIO || b.remaining < LOW_BALANCE_USD);
-  // O preenchimento do medidor carrega a severidade; a trilha é um degrau
-  // mais claro da mesma cor, pra barra inteira ler o estado.
+  // The meter fill carries the severity; the track is a step lighter of the same
+  // color, so the whole bar reads the state.
   const meter = empty
     ? { fill: "bg-red-500", track: "bg-red-500/15", text: "text-red-300" }
     : low
@@ -1065,7 +1066,7 @@ function BalanceSection() {
         </p>
       )}
 
-      {/* Número-herói: o saldo que sobra */}
+      {/* Hero number: the balance that is left */}
       <div className="card space-y-4 p-5">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-wider text-faint">
@@ -1125,7 +1126,7 @@ function BalanceSection() {
         </div>
       </div>
 
-      {/* Consumo desta chave (só o JornAI) */}
+      {/* Consumption of this key (JornAI only) */}
       <div className="card space-y-3 p-4">
         <div>
           <h3 className="text-sm font-semibold">{t.keyTitle}</h3>
@@ -1153,7 +1154,7 @@ function BalanceSection() {
         )}
       </div>
 
-      {/* Cota diária dos modelos gratuitos (3º elo da corrente) */}
+      {/* Daily quota of the free models (3rd link of the chain) */}
       {b.key.freeModelDailyRequests && (
         <div className="card flex items-center justify-between gap-4 p-4">
           <div className="min-w-0">

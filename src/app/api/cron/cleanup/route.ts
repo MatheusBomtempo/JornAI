@@ -4,10 +4,10 @@ import { env } from "@/lib/env";
 import { ok, route, unauthorized } from "@/lib/http";
 
 /**
- * Disparado 1x/dia pelo Vercel Cron (ver vercel.json). Autenticado por
- * CRON_SECRET: o Vercel manda `Authorization: Bearer $CRON_SECRET`
- * automaticamente em cron jobs — sem essa variável configurada, qualquer um
- * na internet poderia bater aqui e forçar a limpeza fora de hora.
+ * Fired once a day by Vercel Cron (see vercel.json). Authenticated by
+ * CRON_SECRET: Vercel automatically sends `Authorization: Bearer $CRON_SECRET`
+ * on cron jobs — without this variable configured, anyone on the internet
+ * could hit this and force the cleanup at the wrong time.
  */
 export const GET = route(async (req: NextRequest) => {
   if (env.cronSecret && req.headers.get("authorization") !== `Bearer ${env.cronSecret}`) {

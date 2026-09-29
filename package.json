@@ -2,7 +2,7 @@
   "name": "jornai",
   "version": "0.1.0",
   "private": true,
-  "description": "Publicação rápida de posts no Instagram para redações de jornal, com apoio de IA para o texto e revisão editorial antes de publicar.",
+  "description": "Fast Instagram publishing for newsrooms, with AI-assisted text and editorial review before publishing.",
   "license": "MIT",
   "engines": {
     "node": ">=20"

@@ -32,12 +32,12 @@ function freePhotosUrl(query: string): string {
 }
 
 /**
- * Sobe o vídeo pro storage. Tenta primeiro PUT direto no bucket (URL
- * assinada) — o corpo nunca passa pela function, então o teto de payload
- * da Vercel (bem menor que os 100 MB que o app aceita) não entra em jogo.
- * Em storage local (dev) não tem URL assinada: cai de volta pro upload via
- * /api/upload de sempre. Nos dois caminhos `onProgress` recebe os bytes
- * enviados — é o que alimenta a barra do modal.
+ * Uploads the video to storage. Tries a direct PUT to the bucket first (signed
+ * URL) — the body never goes through the function, so Vercel's payload ceiling
+ * (much lower than the 100 MB the app accepts) does not come into play. With
+ * local storage (dev) there is no signed URL: it falls back to the usual upload
+ * via /api/upload. On both paths `onProgress` receives the bytes sent — it is
+ * what feeds the modal's bar.
  */
 async function uploadVideoFile(file: File, onProgress: UploadProgress): Promise<string> {
   const presign = await apiPost<{ uploadUrl: string | null; publicUrl?: string }>(
@@ -53,7 +53,7 @@ async function uploadVideoFile(file: File, onProgress: UploadProgress): Promise<
         onProgress,
       );
     } catch (err) {
-      throw new Error(`Falha ao enviar o vídeo pro storage: ${(err as Error).message}`);
+      throw new Error(`Failed to upload the video to storage: ${(err as Error).message}`);
     }
     return presign.publicUrl;
   }
@@ -141,23 +141,23 @@ export function PostWorkspace({ user, post, templates, company }: Props) {
   const STEP_LABELS = [dict.postWorkspace.steps.text, dict.postWorkspace.steps.image, dict.postWorkspace.steps.review];
   const current = post.versions[0];
 
-  // Quem pode editar texto/foto (o autor, ou manager/admin) vs. quem pode
-  // revisar a pauta de OUTRA pessoa (colega jornalista, ou manager/admin).
-  // São poderes diferentes: revisar não dá direito de reescrever o post de
-  // outro à mão, só de aprovar/recusar/pedir que a IA refaça.
+  // Who can edit text/photo (the author, or manager/admin) vs. who can review
+  // ANOTHER person's story (a fellow reporter, or manager/admin). They are
+  // different powers: reviewing does not grant the right to rewrite someone
+  // else's post by hand, only to approve/reject/ask the AI to redo it.
   const isAuthor = post.createdBy === user.id;
   const isManagerOrAdmin = user.role === "manager" || user.role === "admin";
   const isPeerReviewer = user.role === "staff" && !isAuthor;
   const canEdit = isManagerOrAdmin || isAuthor;
   const canDecide = isManagerOrAdmin || isPeerReviewer;
 
-  // Presença de vídeo decide o formato do passo 2 inteiro (VideoEditor em
-  // vez de ArtEditor) — post de vídeo não usa template/slots, só o cartão
-  // de título com animação, sempre em 9:16 (padrão de Reels).
+  // The presence of a video decides the format of the whole step 2 (VideoEditor
+  // instead of ArtEditor) — a video post uses no template/slots, only the
+  // animated title card, always 9:16 (Reels standard).
   const isVideoPost = post.videos.length > 0;
   const mediaReady = !!current?.renderedArtUrl || !!current?.renderedVideoUrl;
 
-  // Proporção real do template desta versão, pra prévia não cortar o 4:5.
+  // Real proportion of this version's template, so the preview does not crop the 4:5.
   const currentTemplate = templates.find((t) => t.id === current?.artTemplateId);
   const previewRatio = isVideoPost
     ? 1080 / 1920
@@ -188,16 +188,16 @@ export function PostWorkspace({ user, post, templates, company }: Props) {
   const [busy, setBusy] = useState<string | null>(null);
   const elapsed = useElapsedSeconds(!!busy);
 
-  // Foto decidida DEPOIS de gerar o texto (achou uma melhor, baixou do
-  // Google ou de um banco gratuito a partir de uma sugestão da IA). Nunca
-  // troca a foto já enviada sozinha — só some à lista pro jornalista escolher.
+  // Photo decided AFTER generating the text (found a better one, downloaded from
+  // Google or from a free library based on an AI suggestion). It never replaces
+  // the photo already sent — it only joins the list for the reporter to choose.
   const [photoBusy, setPhotoBusy] = useState(false);
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [photoDragging, setPhotoDragging] = useState(false);
   const [lastAddedPhotoId, setLastAddedPhotoId] = useState<string | null>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
 
-  // Liga os bytes do XHR à barra do modal: "42% · 12,4 MB de 29,8 MB".
+  // Wires the XHR bytes to the modal bar: "42% · 12.4 MB of 29.8 MB".
   const uploadProgress = useCallback(
     (progress: RunContext["progress"]): UploadProgress =>
       (sent, total) =>
@@ -225,14 +225,14 @@ export function PostWorkspace({ user, post, templates, company }: Props) {
       }
       setPhotoError(null);
       setPhotoBusy(true);
-      // Upload vai pro modal com barra de progresso — no servidor fora do
-      // país até uma foto leva alguns segundos, e o "Enviando…" da zona de
-      // drop some do campo de visão no celular.
+      // Upload goes to the modal with a progress bar — on a server abroad even a
+      // photo takes a few seconds, and the drop zone's "Uploading…" goes out of
+      // view on a phone.
       const result = await runAction({
         title: dict.postWorkspace.busy.uploadingPhoto,
         success: dict.postWorkspace.done.photoAdded,
         fn: async ({ log, progress }) => {
-          // Barra em 0% desde já: o aviso de "não saia do app" depende dela.
+          // Bar at 0% from the start: the "do not leave the app" warning depends on it.
           progress(0);
           const fd = new FormData();
           fd.append("file", file);
@@ -258,15 +258,15 @@ export function PostWorkspace({ user, post, templates, company }: Props) {
     [post.id, router, dict, runAction, uploadProgress],
   );
 
-  // Busca embutida no Pexels (ver PhotoPickerModal) — string = query aberta
-  // no picker, null = fechado. Só um picker por vez, então fica no nível do
-  // workspace em vez de duplicado dentro de cada ImageSuggestions.
+  // Built-in Pexels search (see PhotoPickerModal) — string = query open in the
+  // picker, null = closed. Only one picker at a time, so it lives at the
+  // workspace level instead of duplicated inside each ImageSuggestions.
   const [photoPickerQuery, setPhotoPickerQuery] = useState<string | null>(null);
 
-  // Mesmo final do addPhoto (anexa e recarrega), mas a partir de uma foto já
-  // escolhida no picker em vez de um File do input. O download acontece no
-  // servidor, então não tem barra — só o log e o contador. Devolve se deu
-  // certo pro picker decidir se fecha.
+  // Same ending as addPhoto (attaches and reloads), but from a photo already
+  // chosen in the picker instead of a File from the input. The download happens
+  // on the server, so there is no bar — only the log and the counter. Returns
+  // whether it worked so the picker can decide whether to close.
   const importPexelsPhoto = useCallback(
     async (downloadUrl: string): Promise<boolean> => {
       const result = await runAction({
@@ -290,10 +290,10 @@ export function PostWorkspace({ user, post, templates, company }: Props) {
     [post.id, router, dict, runAction],
   );
 
-  // Mesma ideia do addPhoto, pro vídeo — anexa, recarrega e já deixa o vídeo
-  // novo selecionado no VideoEditor. Antes o editor continuava no vídeo
-  // antigo: quem usava "Adicionar ou trocar o vídeo" e salvava renderizava o
-  // vídeo errado sem perceber.
+  // Same idea as addPhoto, for video — attaches, reloads and already leaves the
+  // new video selected in the VideoEditor. Before, the editor stayed on the old
+  // video: whoever used "Add or change the video" and saved rendered the wrong
+  // video without noticing.
   const [videoBusy, setVideoBusy] = useState(false);
   const [videoError, setVideoError] = useState<string | null>(null);
   const [videoDragging, setVideoDragging] = useState(false);
@@ -315,13 +315,13 @@ export function PostWorkspace({ user, post, templates, company }: Props) {
       }
       setVideoError(null);
       setVideoBusy(true);
-      // Barra de progresso durante o upload (a parte lenta com 100 MB pra
-      // fora do país); depois só o log — a prévia é gerada no servidor.
+      // Progress bar during the upload (the slow part with 100 MB to a server
+      // abroad); afterwards only the log — the preview is generated on the server.
       const result = await runAction({
         title: dict.postWorkspace.busy.uploadingVideo,
         success: dict.postWorkspace.done.videoAdded,
-        // Upload de até 100 MB + prévia no servidor: 8 s (o padrão) é normal
-        // aqui, não lentidão — a barra de progresso já mostra o andamento.
+        // Upload of up to 100 MB + preview on the server: 8 s (the default) is normal
+        // here, not slowness — the progress bar already shows the progress.
         slowAfterSeconds: 60,
         fn: async ({ log, progress }) => {
           progress(0);
@@ -337,16 +337,16 @@ export function PostWorkspace({ user, post, templates, company }: Props) {
       setVideoBusy(false);
       if (!result.ok) return;
       setLastAddedVideoId(result.value.video.id);
-      // O vídeo entra mesmo sem prévia, mas o motivo aparece na tela em vez
-      // de ficar só no log do servidor.
+      // The video is added even without a preview, but the reason shows on screen
+      // instead of staying only in the server log.
       if (result.value.previewError) setVideoError(result.value.previewError);
       router.refresh();
     },
     [post.id, router, dict, runAction, uploadProgress],
   );
 
-  // Loading/erro/sucesso das decisões vão pro modal (ActionOverlay); aqui
-  // só sobra travar os botões e, se deu certo, voltar pro passo natural.
+  // Loading/error/success of the decisions go to the modal (ActionOverlay); all
+  // that is left here is locking the buttons and, if it worked, going back to the natural step.
   async function run(label: string, success: string, fn: () => Promise<unknown>) {
     setBusy(label);
     const result = await runAction({ title: label, success, fn });
@@ -390,7 +390,7 @@ export function PostWorkspace({ user, post, templates, company }: Props) {
 
   return (
     <div className="space-y-5">
-      {/* Cabeçalho */}
+      {/* Header */}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <StatusBadge status={post.status} />
         <span className="text-xs text-muted">
@@ -490,7 +490,7 @@ export function PostWorkspace({ user, post, templates, company }: Props) {
         </section>
       )}
 
-      {/* ───────────── PASSO 2: IMAGEM ───────────── */}
+      {/* ───────────── STEP 2: IMAGE ───────────── */}
       {step === "image" && (
         <section className="card p-4 sm:p-5">
           <h2 className="mb-1 flex items-center gap-1.5 text-sm font-semibold">
@@ -502,7 +502,7 @@ export function PostWorkspace({ user, post, templates, company }: Props) {
           </p>
 
           {!canEdit ? (
-            // Colega revisando: só visualiza, não mexe na foto/vídeo de outra pessoa.
+            // A peer reviewing: view only, does not touch another person's photo/video.
             <div className="space-y-4">
               {isVideoPost ? (
                 current?.renderedVideoUrl ? (
@@ -674,10 +674,10 @@ export function PostWorkspace({ user, post, templates, company }: Props) {
         </section>
       )}
 
-      {/* ───────────── PASSO 3: REVISÃO ───────────── */}
+      {/* ───────────── STEP 3: REVIEW ───────────── */}
       {step === "review" && (
         <div className="grid gap-5 lg:grid-cols-[minmax(0,380px)_minmax(0,1fr)]">
-          {/* Prévia */}
+          {/* Preview */}
           <section className="card p-4">
             <h2 className="mb-3 text-sm font-semibold">{dict.postWorkspace.review.previewHeading}</h2>
             <InstagramPreview
@@ -691,7 +691,7 @@ export function PostWorkspace({ user, post, templates, company }: Props) {
           </section>
 
           <div className="space-y-5">
-            {/* Decisão — uma ação primária clara por papel, o resto fica discreto. */}
+            {/* Decision — one clear primary action per role, the rest stays discreet. */}
             {!isFinished && (
               <section className="card p-4">
                 <h2 className="mb-3 text-sm font-semibold">{dict.postWorkspace.review.decisionHeading}</h2>
@@ -824,7 +824,7 @@ export function PostWorkspace({ user, post, templates, company }: Props) {
               </section>
             )}
 
-            {/* Histórico */}
+            {/* History */}
             <section className="card p-4">
               <h2 className="mb-3 text-sm font-semibold">
                 {dict.postWorkspace.history.heading} ({post.versions.length})
@@ -871,7 +871,7 @@ export function PostWorkspace({ user, post, templates, company }: Props) {
   );
 }
 
-// ── Peças de UI ──────────────────────────────────────────────
+// ── UI pieces ────────────────────────────────────────────────
 
 function Decision({
   icon, title, desc, onClick, disabled, tone,
@@ -906,10 +906,10 @@ function EmptyNote({ children }: { children: React.ReactNode }) {
 }
 
 /**
- * Envio de foto direto na tela de revisão — pro caso em que o jornalista só
- * decide a imagem depois de ver o texto pronto (achou uma melhor, baixou do
- * Google ou de um banco gratuito). Aceita arrastar-e-soltar ou o botão
- * tradicional; nunca é a única forma de adicionar foto, só mais uma.
+ * Photo upload right on the review screen — for the case where the reporter
+ * only decides on the image after seeing the finished text (found a better one,
+ * downloaded from Google or from a free library). Accepts drag-and-drop or the
+ * traditional button; it is never the only way to add a photo, just one more.
  */
 function PhotoUploader({
   dragging, busy, compact, onDragOver, onDragLeave, onDrop, onPick,
@@ -949,7 +949,7 @@ function PhotoUploader({
   );
 }
 
-/** Mesma ideia do PhotoUploader, pro vídeo (formato/teto diferentes). */
+/** Same idea as PhotoUploader, for video (different format/ceiling). */
 function VideoUploader({
   dragging, busy, compact, onDragOver, onDragLeave, onDrop, onPick,
 }: {
@@ -989,17 +989,17 @@ function VideoUploader({
 }
 
 /**
- * Exatamente 2 sugestões de busca geradas pela IA — só ajudam a achar uma
- * imagem; nunca escolhem, baixam ou publicam nada sozinhas.
+ * Exactly 2 search suggestions generated by the AI — they only help find an
+ * image; they never choose, download or publish anything by themselves.
  *
- * "Google Imagens" sempre abre numa aba nova — a página de resultados do
- * Google bloqueia iframe e não existe API gratuita equivalente, então dá
- * pra achar a foto real do fato, mas não pra embutir/automatizar isso.
+ * "Google Images" always opens in a new tab — Google's results page blocks
+ * iframes and there is no equivalent free API, so the real photo of the event
+ * can be found, but not embedded/automated.
  *
- * "Fotos gratuitas" (Pexels) já é embutido quando `onSearchPhotos` é
- * passado (abre o PhotoPickerModal — busca, escolhe, a foto já entra na
- * arte, sem sair do site). Sem esse callback (revisão de colega, só
- * visualização), cai pro link de sempre em aba nova.
+ * "Free photos" (Pexels) is already embedded when `onSearchPhotos` is passed
+ * (opens the PhotoPickerModal — search, pick, the photo goes straight into the
+ * art, without leaving the site). Without that callback (peer review, view
+ * only), it falls back to the usual link in a new tab.
  */
 function ImageSuggestions({
   suggestions,
@@ -1057,7 +1057,7 @@ function ImageSuggestions({
   );
 }
 
-/** Logo oficial multicolor do Google — mantém as cores de marca em qualquer tema. */
+/** Official multicolor Google logo — keeps the brand colors in any theme. */
 function GoogleIcon() {
   return (
     <svg viewBox="0 0 18 18" className="h-3.5 w-3.5 shrink-0" aria-hidden>
@@ -1085,11 +1085,11 @@ type PhotoSearchResponse =
   | { enabled: true; photos: PexelsPhoto[]; nextPage: number | null };
 
 /**
- * Busca embutida no Pexels, aberta a partir de uma sugestão da IA (query já
- * preenchida, editável). Mostra a grade de fotos sem sair do site; clicar
- * numa já baixa (server-side, via /photo-search/import) e anexa ao post
- * (`onPick`, o mesmo final do addPhoto normal). Sem PEXELS_API_KEY
- * configurada, cai pro link de sempre em aba nova.
+ * Built-in Pexels search, opened from an AI suggestion (query already filled
+ * in, editable). Shows the photo grid without leaving the site; clicking one
+ * already downloads it (server-side, via /photo-search/import) and attaches it
+ * to the post (`onPick`, the same ending as the normal addPhoto). Without
+ * PEXELS_API_KEY configured, it falls back to the usual link in a new tab.
  */
 function PhotoPickerModal({
   initialQuery,
@@ -1132,13 +1132,13 @@ function PhotoPickerModal({
 
   useEffect(() => {
     search(initialQuery, 1, false);
-    // Só na abertura — buscas seguintes (novo termo, "carregar mais") vêm
-    // de ações explícitas do usuário, não de mudança de prop.
+    // Only on open — later searches (new term, "load more") come from explicit
+    // user actions, not from a prop change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Erro do import aparece no modal de progresso (ActionOverlay), não aqui —
-  // se falhou, o picker só volta ao normal pra pessoa escolher outra.
+  // The import error shows in the progress modal (ActionOverlay), not here —
+  // if it failed, the picker just goes back to normal so the person picks another.
   async function pick(photo: PexelsPhoto) {
     setPickingId(photo.id);
     setError(null);
@@ -1323,8 +1323,8 @@ function Read({
 }
 
 /**
- * Nome amigável do provedor que gerou o texto. Provedores dentro da corrente
- * de fallback (chain) chegam como "openrouter:modelo" — extrai só o nome.
+ * Friendly name of the provider that generated the text. Providers inside the
+ * fallback chain arrive as "openrouter:model" — extracts only the name.
  */
 function aiSourceLabel(provider: string, names: Record<string, string>): string {
   const base = provider.split(":")[0];

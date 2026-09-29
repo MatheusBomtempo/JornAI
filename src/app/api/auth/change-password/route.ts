@@ -5,9 +5,9 @@ import { changePasswordSchema } from "@/lib/validation";
 import { ok, route } from "@/lib/http";
 
 /**
- * POST /auth/change-password — o próprio usuário logado troca a senha
- * (ex.: depois de entrar com a senha temporária "sucessoNN"). Zera
- * passwordResetAt: é o que faz a sugestão de troca sumir do app.
+ * POST /auth/change-password — the logged-in user changes their own password
+ * (e.g. after signing in with the temporary password "successNN"). It zeroes
+ * passwordResetAt: that is what makes the change suggestion vanish from the app.
  */
 export const POST = route(async (req: NextRequest) => {
   const user = await requireUser();

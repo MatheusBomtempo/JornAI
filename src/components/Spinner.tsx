@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-/** Ícone girando — sinal visual de "ainda rodando", não travado. */
+/** Spinning icon — a visual sign of "still running", not stuck. */
 export function Spinner({ className = "" }: { className?: string }) {
   return (
     <svg
@@ -16,10 +16,10 @@ export function Spinner({ className = "" }: { className?: string }) {
 }
 
 /**
- * Conta os segundos desde que `active` virou true — dá feedback tangível de
- * que a chamada está progredindo (e não travada), sem precisar abrir o
- * terminal pra ver log nenhum. Provedores gratuitos podem demorar bastante
- * (fila compartilhada) — isso avisa isso de forma explícita depois de um tempo.
+ * Counts the seconds since `active` became true — gives tangible feedback that
+ * the call is progressing (and not stuck), without needing to open the
+ * terminal to read any log. Free providers can take quite long (shared queue)
+ * — this says so explicitly after a while.
  */
 export function useElapsedSeconds(active: boolean): number {
   const [seconds, setSeconds] = useState(0);
@@ -39,7 +39,7 @@ export function useElapsedSeconds(active: boolean): number {
   return seconds;
 }
 
-/** Texto do botão com spinner + contador — usar dentro de um <button>. */
+/** Button text with spinner + counter — use inside a <button>. */
 export function BusyLabel({ label, seconds }: { label: string; seconds: number }) {
   return (
     <span className="inline-flex items-center gap-2">

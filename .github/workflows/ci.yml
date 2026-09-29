@@ -9,10 +9,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
-    # `npm run build` roda `prisma migrate deploy` antes do `next build` (é o
-    # mesmo script que a Vercel usa) — então precisa de um Postgres de verdade
-    # e do DIRECT_URL que o schema exige. De quebra, o CI valida que a cadeia
-    # inteira de migrations aplica limpa num banco zerado.
+    # `npm run build` runs `prisma migrate deploy` before `next build` (it is the
+    # same script Vercel uses) — so it needs a real Postgres and the DIRECT_URL
+    # the schema requires. As a bonus, CI validates that the whole chain of
+    # migrations applies cleanly on an empty database.
     services:
       postgres:
         image: postgres:16

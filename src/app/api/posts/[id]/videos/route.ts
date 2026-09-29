@@ -4,11 +4,11 @@ import { addVideoSchema } from "@/lib/validation";
 import { addVideoToPost } from "@/lib/services/posts";
 import { created, route } from "@/lib/http";
 
-// Extrai o frame do meio (ffmpeg) antes de responder — ver addVideoToPost.
+// Extracts the middle frame (ffmpeg) before answering — see addVideoToPost.
 export const maxDuration = 120;
 
-// POST /posts/:id/videos — anexa um vídeo a um post (equivalente a /photos,
-// pro post de vídeo em vez de foto).
+// POST /posts/:id/videos — attaches a video to a post (equivalent to /photos,
+// for the video post instead of photo).
 export const POST = route(
   async (req: NextRequest, ctx: { params: Promise<{ id: string }> }) => {
     const user = await requireCompanyUser();

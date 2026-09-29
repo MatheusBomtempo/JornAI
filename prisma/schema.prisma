@@ -1,6 +1,6 @@
-// JornAI — schema do banco (PostgreSQL)
-// Mapeado 1:1 do SPEC.md. Campos "status"/"origin"/"decision" ficam como String
-// (validados no app via Zod) para bater exatamente com o SPEC; user_role é enum.
+// JornAI — database schema (PostgreSQL)
+// Mapped 1:1 from SPEC.md. The "status"/"origin"/"decision" fields stay as String
+// (validated in the app via Zod) to match the SPEC exactly; user_role is an enum.
 
 generator client {
   provider = "prisma-client-js"
@@ -9,7 +9,7 @@ generator client {
 datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL") // pooled (pgbouncer) — usado em runtime
-  directUrl = env("DIRECT_URL") // conexão direta — só usada por `prisma migrate`
+  directUrl = env("DIRECT_URL") // direct connection — only used by `prisma migrate`
 }
 
 enum UserRole {
@@ -21,22 +21,22 @@ enum UserRole {
 }
 
 /**
- * Uma empresa/redação — cada uma tem seu próprio feed, templates, estilo e
- * configurações, totalmente isolados das demais (multi-tenant). Criada pelo
- * admin no primeiro login (ver /onboarding); todo usuário criado depois
- * herda a companyId de quem criou.
+ * A company/newsroom — each one has its own feed, templates, style and
+ * settings, fully isolated from the others (multi-tenant). Created by the
+ * admin on the first login (see /onboarding); every user created afterwards
+ * inherits the companyId of whoever created them.
  */
 model Company {
   id              String   @id @default(uuid()) @db.Uuid
   name            String
   logoUrl         String?  @map("logo_url")
-  /** @ do Instagram da empresa (com arroba), ex.: "@meujornal". Opcional. */
+  /** Instagram @ of the company (with the at-sign), e.g. "@mynewspaper". Optional. */
   instagramHandle String?  @map("instagram_handle")
   /**
-   * Cores da marca (hex, ex. "#0f172a") — usadas nos templates de vídeo
-   * (ver VIDEO_CARD_STYLES). Escura e clara: se não configuradas, os
-   * templates caem num padrão neutro. brandColorAccent é opcional e ainda
-   * não é usada em nenhum template.
+   * Brand colors (hex, e.g. "#0f172a") — used in the video templates
+   * (see VIDEO_CARD_STYLES). Dark and light: if not configured, the templates
+   * fall back to a neutral default. brandColorAccent is optional and is not
+   * used by any template yet.
    */
   brandColorDark   String? @map("brand_color_dark")
   brandColorLight  String? @map("brand_color_light")
@@ -61,9 +61,9 @@ model User {
   role         UserRole @default(staff)
   active       Boolean  @default(true)
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  /** Última vez que um admin/manager resetou a senha e mandou por e-mail. */
+  /** Last time an admin/manager reset the password and sent it by email. */
   passwordResetAt DateTime? @map("password_reset_at") @db.Timestamptz(6)
-  /** Nulo só antes do onboarding (admin recém-criado, sem empresa ainda). */
+  /** Null only before onboarding (freshly created admin, no company yet). */
   companyId    String?  @map("company_id") @db.Uuid
 
   company          Company?         @relation(fields: [companyId], references: [id])
@@ -104,7 +104,7 @@ model Post {
   sourceText     String?  @map("source_text")
   sourceUrl      String?  @map("source_url")
   scrapedContent String?  @map("scraped_content")
-  /** Créditos/marcações: [{ type: 'photo'|'source'|..., handle: '@fulano' }] */
+  /** Credits/tags: [{ type: 'photo'|'source'|..., handle: '@someone' }] */
   credits        Json?
   status         String   @default("processing_ai")
   createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -125,7 +125,7 @@ model Post {
 model PostPhoto {
   id         String   @id @default(uuid()) @db.Uuid
   postId     String   @map("post_id") @db.Uuid
-  storageUrl String   @map("storage_url") // foto original, sem edição
+  storageUrl String   @map("storage_url") // original photo, unedited
   orderIndex Int?     @map("order_index")
   createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
@@ -136,17 +136,17 @@ model PostPhoto {
 }
 
 /**
- * Vídeo original enviado (antes do render com o texto animado). Mesmo
- * padrão do PostPhoto: só anexa, a escolha de qual usar é manual.
+ * Original uploaded video (before the render with the animated text). Same
+ * pattern as PostPhoto: it only attaches, which one to use is a manual choice.
  */
 model PostVideo {
   id         String   @id @default(uuid()) @db.Uuid
   postId     String   @map("post_id") @db.Uuid
   storageUrl String   @map("storage_url")
   durationMs Int?     @map("duration_ms")
-  /** Frame do meio do vídeo, já em 9:16 — fundo do preview no editor. */
+  /** Middle frame of the video, already in 9:16 — background of the preview in the editor. */
   previewFrameUrl String? @map("preview_frame_url")
-  /** Dimensões do arquivo enviado — usadas pra avisar quanto o 9:16 vai cortar. */
+  /** Dimensions of the uploaded file — used to warn how much the 9:16 will crop. */
   width      Int?
   height     Int?
   orderIndex Int?     @map("order_index")
@@ -163,12 +163,12 @@ model ArtTemplate {
   companyId       String   @map("company_id") @db.Uuid
   name            String
   canvasWidth     Int      @default(1080) @map("canvas_width")
-  canvasHeight    Int      @default(1080) @map("canvas_height") // ou 1350 pro formato 4:5
+  canvasHeight    Int      @default(1080) @map("canvas_height") // or 1350 for the 4:5 format
   overlayAssetUrl String   @map("overlay_asset_url")
   photoSlot       Json     @map("photo_slot") // { x, y, width, height }
-  /** Slot do título da arte (máx. 69 caracteres). */
+  /** Slot of the art title (max. 69 characters). */
   titleSlot       Json     @map("text_slot")
-  /** Slot do subtítulo, logo abaixo do título (máx. 149 caracteres). */
+  /** Slot of the subtitle, right below the title (max. 149 characters). */
   subtitleSlot    Json?    @map("subtitle_slot")
   isActive        Boolean  @default(true) @map("is_active")
   createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -181,9 +181,9 @@ model ArtTemplate {
 }
 
 /**
- * LEGADO — substituída por StyleExample. Mantida apenas para não destruir
- * dados existentes; nenhuma parte do app lê ou escreve nesta tabela.
- * Pode ser removida numa migração futura, quando você quiser.
+ * LEGACY — replaced by StyleExample. Kept only so as not to destroy existing
+ * data; no part of the app reads or writes this table. It can be removed in a
+ * future migration, whenever you want.
  */
 model StyleReference {
   id               Int      @id @default(1)
@@ -200,14 +200,14 @@ model StyleReference {
 }
 
 /**
- * Exemplos de referência de estilo. A IA imita o tom/formato destes posts
- * reais do jornal (não copia o conteúdo).
+ * Style reference examples. The AI imitates the tone/format of these real
+ * posts from the newspaper (it does not copy the content).
  */
 model StyleExample {
   id         String   @id @default(uuid()) @db.Uuid
   companyId  String   @map("company_id") @db.Uuid
-  title      String? // título da arte (máx. 69)
-  subtitle   String? // subtítulo da arte (máx. 149)
+  title      String? // art title (max. 69)
+  subtitle   String? // art subtitle (max. 149)
   caption    String? // legenda completa do Instagram
   orderIndex Int      @default(0) @map("order_index")
   createdBy  String?  @map("created_by") @db.Uuid
@@ -226,40 +226,40 @@ model PostVersion {
   postId           String   @map("post_id") @db.Uuid
   versionNumber    Int      @map("version_number")
   origin           String // 'ai_generated' | 'manual_edit' | 'ai_regenerated'
-  /** Título da arte (máx. 69 caracteres). */
+  /** Art title (max. 69 characters). */
   title            String?
-  /** Subtítulo da arte, abaixo do título (máx. 149 caracteres). */
+  /** Art subtitle, below the title (max. 149 characters). */
   subtitle         String?
-  shortNews        String?  @map("short_news") // legado, não usado
+  shortNews        String?  @map("short_news") // legacy, unused
   instagramCaption String?  @map("instagram_caption")
-  artText          String?  @map("art_text") // legado, não usado
-  /** Provedor que gerou o texto desta versão (ex.: "groq", "openrouter:..."). Nulo em edição manual. */
+  artText          String?  @map("art_text") // legacy, unused
+  /** Provider that generated the text of this version (e.g. "groq", "openrouter:..."). Null on a manual edit. */
   aiProvider       String?  @map("ai_provider")
-  /** Modelo usado pelo provedor acima (ex.: "openai/gpt-oss-20b"). */
+  /** Model used by the provider above (e.g. "openai/gpt-oss-20b"). */
   aiModel          String?  @map("ai_model")
   selectedPhotoId  String?  @map("selected_photo_id") @db.Uuid
   photoTransform   Json?    @map("photo_transform") // { offsetX, offsetY, scale }
-  /** Deslocamento do título em relação à posição padrão do template. */
+  /** Offset of the title relative to the template's default position. */
   titleOffset      Json?    @map("title_offset") // { offsetX, offsetY }
-  /** Deslocamento do subtítulo em relação à posição padrão do template. */
+  /** Offset of the subtitle relative to the template's default position. */
   subtitleOffset   Json?    @map("subtitle_offset") // { offsetX, offsetY }
   artTemplateId    String?  @map("art_template_id") @db.Uuid
   renderedArtUrl   String?  @map("rendered_art_url")
-  /** Exatamente 2 sugestões de busca de imagem geradas pela IA (ex.: ["viatura polícia MG", "arma sobre mesa"]). Auxiliar — nunca seleciona nem publica foto sozinha. */
+  /** Exactly 2 image-search suggestions generated by the AI (e.g. ["police car patrol", "gun on table"]). Auxiliary — never selects or publishes a photo on its own. */
   imageSuggestions Json?    @map("image_suggestions")
-  /** Vídeo original escolhido (post de vídeo, em vez de foto). */
+  /** Original video chosen (video post, instead of a photo). */
   selectedVideoId  String?  @map("selected_video_id") @db.Uuid
   /**
-   * Template fixo do cartão de título do vídeo ('classic' | 'light' | 'bold').
-   * Diferente do ArtTemplate (foto): são só 3 estilos prontos no código, sem
-   * builder — por isso é string livre em vez de relation. Padrão "bold" (o
-   * 3º, ver DEFAULT_VIDEO_TEMPLATE em render/video-layout.ts) — mantém os 3
-   * defaults (banco, validação e UI) alinhados.
+   * Fixed template of the video title card ('classic' | 'light' | 'bold').
+   * Unlike ArtTemplate (photo): there are only 3 ready-made styles in the code,
+   * with no builder — hence a free string instead of a relation. Default "bold"
+   * (the 3rd, see DEFAULT_VIDEO_TEMPLATE in render/video-layout.ts) — keeps the
+   * 3 defaults (database, validation and UI) aligned.
    */
   videoTemplate    String   @default("bold") @map("video_template")
   /**
-   * Vídeo final já renderizado (texto com animação de entrada/saída
-   * gravado nos frames) — é ESTE que vai pro Instagram, nunca o original.
+   * Final video already rendered (text with entry/exit animation burned into
+   * the frames) — THIS is the one that goes to Instagram, never the original.
    */
   renderedVideoUrl String?  @map("rendered_video_url")
   editedBy         String?  @map("edited_by") @db.Uuid
@@ -310,19 +310,19 @@ model Publication {
 }
 
 /**
- * Rastro mínimo de auditoria: quando um post é apagado pela limpeza
- * automática de retenção (ver função `cleanup_expired_posts()` no banco),
- * o registro pesado (fotos, versões, decisões, publicações) some, mas fica
- * esta linha — só o essencial pra responder "quem postou o quê e quando" se
- * precisar auditar depois. Sem relation pro Post: ele já não existe mais.
+ * Minimal audit trail: when a post is deleted by the automatic retention
+ * cleanup (see the `cleanup_expired_posts()` function in the database), the
+ * heavy record (photos, versions, decisions, publications) goes away, but this
+ * row stays — only the essentials to answer "who posted what and when" if it
+ * needs auditing later. No relation to Post: it no longer exists.
  */
 model PostAuditLog {
   id          String    @id @default(uuid()) @db.Uuid
   postId      String    @map("post_id") @db.Uuid
-  /** Sem relation pra Company de propósito (mesmo motivo do post: só filtra o log por empresa). */
+  /** No relation to Company on purpose (same reason as the post: it only filters the log by company). */
   companyId   String    @map("company_id") @db.Uuid
   title       String?
-  /** Status do post no momento em que foi apagado ('published' | 'in_review' | 'failed'). */
+  /** Status of the post at the moment it was deleted ('published' | 'in_review' | 'failed'). */
   status      String
   authorName  String    @map("author_name")
   createdAt   DateTime  @map("created_at") @db.Timestamptz(6)
@@ -335,10 +335,10 @@ model PostAuditLog {
 }
 
 /**
- * Configuração por empresa — 1 linha por company (era global antes do
- * multi-tenant). Por ora só guarda se a revisão por pares/editor é
- * obrigatória antes de publicar; desligada, o post publica direto assim que
- * a arte é salva, sem passar por "em revisão".
+ * Per-company settings — 1 row per company (it was global before
+ * multi-tenancy). For now it only stores whether peer/editor review is
+ * mandatory before publishing; turned off, the post publishes straight away as
+ * soon as the art is saved, without going through "in review".
  */
 model AppSettings {
   id             String   @id @default(uuid()) @db.Uuid

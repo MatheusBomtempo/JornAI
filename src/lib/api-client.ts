@@ -1,6 +1,15 @@
 "use client";
 
-/** Wrapper de fetch para os componentes client. Lança com a mensagem da API. */
+import { isLocale } from "@/lib/i18n/config";
+import { getDictionary } from "@/lib/i18n/dictionary";
+
+/** Messages in the language the interface is currently showing. */
+function text() {
+  const lang = document.documentElement.lang.slice(0, 2);
+  return getDictionary(isLocale(lang) ? lang : "en").apiClient;
+}
+
+/** Fetch wrapper for the client components. Throws with the API message. */
 export async function api<T = unknown>(
   path: string,
   init?: RequestInit,
@@ -22,7 +31,7 @@ export async function api<T = unknown>(
 
   if (!res.ok) {
     const message =
-      (data as { error?: string })?.error ?? `Erro ${res.status}`;
+      (data as { error?: string })?.error ?? `${text().httpError} ${res.status}`;
     throw new Error(message);
   }
   return data as T;
@@ -48,11 +57,11 @@ export const apiDelete = <T>(path: string) =>
 export type UploadProgress = (sentBytes: number, totalBytes: number) => void;
 
 /**
- * Envio de arquivo com progresso. `fetch` não expõe o andamento do upload;
- * XMLHttpRequest sim — e num vídeo de 100 MB pra um servidor em outro
- * continente é a diferença entre "travou?" e "faltam 30%". Mesmo contrato
- * de erro do `api()`: lança com a mensagem da API (ou o <Message> do XML
- * que o S3/R2 devolve quando a URL assinada é recusada).
+ * File upload with progress. `fetch` does not expose upload progress;
+ * XMLHttpRequest does — and for a 100 MB video going to a server on another
+ * continent it is the difference between "did it hang?" and "30% left". Same
+ * error contract as `api()`: throws with the API message (or the <Message> of
+ * the XML that S3/R2 return when the signed URL is refused).
  */
 export function uploadWithProgress<T = unknown>(
   url: string,
@@ -68,9 +77,9 @@ export function uploadWithProgress<T = unknown>(
     xhr.upload.onprogress = (e) => {
       if (e.lengthComputable) onProgress?.(e.loaded, e.total);
     };
-    xhr.onerror = () => reject(new Error("Falha de rede durante o envio."));
-    xhr.onabort = () => reject(new Error("Envio cancelado."));
-    xhr.ontimeout = () => reject(new Error("O envio demorou demais e foi interrompido."));
+    xhr.onerror = () => reject(new Error(text().uploadNetworkError));
+    xhr.onabort = () => reject(new Error(text().uploadAborted));
+    xhr.ontimeout = () => reject(new Error(text().uploadTimeout));
     xhr.onload = () => {
       const type = xhr.getResponseHeader("content-type") ?? "";
       let data: unknown = null;
@@ -86,7 +95,7 @@ export function uploadWithProgress<T = unknown>(
           ? /<Message>([\s\S]*?)<\/Message>/.exec(xhr.responseText)?.[1]
           : undefined;
         const message =
-          (data as { error?: string })?.error ?? xmlMessage ?? `Erro ${xhr.status}`;
+          (data as { error?: string })?.error ?? xmlMessage ?? `${text().httpError} ${xhr.status}`;
         reject(new Error(message));
         return;
       }

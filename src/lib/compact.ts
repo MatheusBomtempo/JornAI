@@ -4,60 +4,64 @@ import {
   classifyContent,
   extractStructuredFields,
   fieldLabel,
-  weekdayPtBr,
 } from "./classify";
-import { looksLikeFormDocument, cleanFormDocument } from "./form-bo";
+import { getLanguagePack } from "./language";
 
 /**
- * Pipeline de compactação de conteúdo, rodando ANTES da IA:
+ * Content compaction pipeline, running BEFORE the AI:
  *
- *   PDF / URL / TEXTO ──▶ (já normalizado por pdf.ts/scrape.ts)
+ *   PDF / URL / TEXT ──▶ (already normalized by pdf.ts/scrape.ts)
  *        │
  *        ▼
- *   MARKDOWNIFY (junta linhas quebradas em parágrafos, remove cabeçalho/
- *                rodapé repetido, marca seções em CAIXA ALTA)
+ *   MARKDOWNIFY (joins broken lines into paragraphs, removes repeated
+ *                header/footer, marks ALL-CAPS sections)
  *        │
  *        ▼
- *   REDATOR (regex — CPF, telefone, placa, CEP, "Nome, NN anos") — roda
- *            DEPOIS do markdownify de propósito: um PDF pode quebrar um
- *            nome ou telefone no meio da linha por largura de página, e o
- *            regex só bate na linha já remontada em parágrafo.
+ *   REDACTOR (regex — ID numbers, phones, plates, "Name, NN years") — runs
+ *            AFTER markdownify on purpose: a PDF can break a name or phone in
+ *            the middle of a line because of page width, and the regex only
+ *            matches on the line already reassembled into a paragraph.
  *        │
  *        ▼
- *   CLASSIFICADOR (estruturado vs. genérico — sem IA)
+ *   CLASSIFIER (structured vs. generic — no AI)
  *        │
  *   ┌────┴────┐
  *   ▼         ▼
- * ESTRUTURADO GENÉRICO
- * (extrai      (o markdown
- *  campos)      já compacto,
- *               só corta no teto)
+ * STRUCTURED GENERIC
+ * (extracts   (the markdown
+ *  fields)     is already
+ *              compact, just
+ *              cut at the cap)
  *   └────┬────┘
  *        ▼
- *   TEXTO COMPACTO ──▶ IA (modelo de escrita)
+ *   COMPACT TEXT ──▶ AI (writing model)
  *
- * Documento estruturado (boletim, laudo, nota oficial): em vez de mandar as
- * 10-20 páginas inteiras pra IA "ler", extrai só os campos relevantes por
- * regra — nenhum token gasto nessa etapa, resultado costuma ser uma fração
- * do tamanho original.
+ * Structured document (police report, expert report, official statement):
+ * instead of sending the whole 10-20 pages to the AI to "read", only the
+ * relevant fields are extracted by rule — no tokens spent on this step, and the
+ * result is usually a fraction of the original size.
  *
- * Sem nenhum campo reconhecido (matéria de link, texto solto, ou qualquer
- * documento fora do padrão): não corta cegamente o texto bruto — usa o
- * resultado do markdownify (já sem ruído repetido, já em parágrafos de
- * verdade) e só então aplica o teto de tamanho. Genérico de propósito: um
- * PDF de contrato, uma ata de reunião, qualquer coisa sem campos
- * reconhecidos passa por aqui e ainda sai mais legível/compacto que o bruto.
+ * With no recognized field (article from a link, loose text, or any document
+ * outside the pattern): the raw text is not cut blindly — the markdownify
+ * result (already free of repeated noise, already in real paragraphs) is used
+ * and only then is the size cap applied. Generic on purpose: a contract PDF,
+ * meeting minutes, anything without recognized fields goes through here and
+ * still comes out more readable/compact than the raw text.
+ *
+ * Which patterns count as "recognized" depends on the content language — see
+ * src/lib/language.
  */
 
-// Teto do texto que segue pro prompt. Era 3000 na época do Groq gratuito
-// (teto de tokens/minuto); com provedor pago barato isso virou o gargalo
-// errado: num BO de 15 páginas o corte em 3000 ficava SÓ com o cabeçalho
-// burocrático e jogava fora o histórico — a IA inventava a notícia inteira.
+// Ceiling of the text that goes on to the prompt. It was 3000 back in the
+// free-Groq days (tokens-per-minute cap); with a cheap paid provider that
+// became the wrong bottleneck: in a 15-page police report a 3000 cut kept
+// ONLY the bureaucratic header and threw away the narrative — the AI invented
+// the whole story.
 const GENERIC_MAX_CHARS = 8000;
 
 export interface CompactResult {
   kind: "structured" | "generic";
-  /** Texto pronto pra entrar no prompt da IA. */
+  /** Text ready to go into the AI prompt. */
   text: string;
   originalChars: number;
   compactChars: number;
@@ -69,52 +73,54 @@ export function compactSource(
   raw: string,
   opts: { keepNames?: boolean } = {},
 ): CompactResult {
+  const pack = getLanguagePack();
   const trimmed = raw.trim();
   const { text: joined, removedDuplicateLines } = markdownify(trimmed);
   const { text: markdown, redactedCount } = redactSensitive(joined, opts);
   const kind = classifyContent(markdown);
 
   let compactText: string;
-  if (kind === "structured" && looksLikeFormDocument(markdown)) {
-    // FORMULÁRIO (BO SISP etc.): células viram cabeçalhos soltos e o valor
-    // flutua no vizinho — o extrator "Rótulo: valor" não acha nada aqui.
-    // O perfil de formulário remove dado pessoal + burocracia, destila os
-    // campos noticiosos e traz o histórico pra frente do texto.
-    // Whitelist: o descarte em massa do formulário não conta como "redação"
-    // no log — redactedCount segue medindo só os padrões de dado sensível.
-    const form = cleanFormDocument(markdown);
-    compactText = clip(form.text, GENERIC_MAX_CHARS);
+  const form = pack.document.form;
+  if (kind === "structured" && form?.looksLikeForm(markdown)) {
+    // FORM (police report etc.): cells become loose headers and the value
+    // floats in the neighbor — the "Label: value" extractor finds nothing
+    // here. The form profile removes personal data + bureaucracy, distills the
+    // newsworthy fields and brings the narrative to the front of the text.
+    // Whitelist: the mass discard of the form does not count as "redaction"
+    // in the log — redactedCount keeps measuring only sensitive-data patterns.
+    compactText = clip(form.clean(markdown).text, GENERIC_MAX_CHARS);
   } else if (kind === "structured") {
     const { fields, labels } = extractStructuredFields(markdown);
     const lines = Object.entries(fields)
       .filter(([, v]) => v)
       .map(([key, value]) => `${fieldLabel(key, labels)}: ${value}`);
-    // Não confia nos campos sozinhos se não veio conteúdo substancial — sem
-    // isso a IA fica só com "Natureza: X" e nenhum fato pra escrever (bug
-    // real: um relato inteiro em CAIXA ALTA podia ser mal-detectado como
-    // vários cabeçalhos, esvaziando a extração). Um relato longo já basta;
-    // na ausência dele, aceita também vários campos rotulados com conteúdo
-    // real (ex.: BO que espalha os fatos em "Vítimas:", "Veículos:", "Causa
-    // presumida:" em vez de um único parágrafo narrativo). Sem nenhum dos
-    // dois, cai pro markdown inteiro, que sempre tem o conteúdo de verdade.
+    // Does not trust the fields alone if no substantial content came out —
+    // without this the AI is left with just "Nature: X" and no fact to write
+    // (real bug: a whole narrative in ALL CAPS could be mis-detected as
+    // several headers, emptying the extraction). A long narrative is enough;
+    // without one, several labelled fields with real content are also
+    // accepted (e.g. a report that spreads the facts over "Victims:",
+    // "Vehicles:", "Presumed cause:" instead of a single narrative paragraph).
+    // With neither, it falls back to the whole markdown, which always has the
+    // real content.
     const totalFieldChars = Object.values(fields).reduce((n, v) => n + v.length, 0);
     const hasSubstance =
-      (fields.relato?.length ?? 0) > 60 ||
+      (fields.narrative?.length ?? 0) > 60 ||
       (Object.keys(fields).length >= 4 && totalFieldChars > 150);
     compactText = hasSubstance ? lines.join("\n") : clip(markdown, GENERIC_MAX_CHARS);
   } else {
     compactText = clip(markdown, GENERIC_MAX_CHARS);
   }
 
-  // Última rede de segurança: se o resultado ficou curto demais perto de um
-  // original substancial, algo deu errado na compactação — usa o texto
-  // original (só redigido) cortado no teto em vez de mandar quase nada pra IA.
+  // Last safety net: if the result came out too short next to a substantial
+  // original, something went wrong in the compaction — use the original text
+  // (only redacted) cut at the cap instead of sending almost nothing to the AI.
   if (compactText.trim().length < 80 && trimmed.length > 300) {
     compactText = clip(markdown, GENERIC_MAX_CHARS);
   }
 
-  // Dia da semana calculado por código a partir das datas do texto — NUNCA
-  // deixado pro modelo "calcular" (errava de verdade: data certa, dia errado).
+  // Weekday computed by code from the dates in the text — NEVER left for the
+  // model to "compute" (it really got it wrong: right date, wrong weekday).
   const weekdayLine = computedWeekdayLine(compactText);
   if (weekdayLine) compactText += `\n${weekdayLine}`;
 
@@ -128,24 +134,20 @@ export function compactSource(
   };
 }
 
-/** "Dia da semana de 19/08/2026: quarta-feira" pra data mais citada no texto. */
+/** "Day of the week for 19/08/2026: Wednesday" for the most-cited date in the text. */
 function computedWeekdayLine(text: string): string | null {
-  const counts = new Map<string, number>();
-  for (const m of text.matchAll(/\b\d{1,2}\/\d{1,2}\/\d{4}\b/g)) {
-    counts.set(m[0], (counts.get(m[0]) ?? 0) + 1);
+  const pack = getLanguagePack();
+  const counts = new Map<string, { count: number; date: Date }>();
+  for (const { raw, date } of pack.findDates(text)) {
+    const entry = counts.get(raw);
+    counts.set(raw, { count: (entry?.count ?? 0) + 1, date });
   }
-  let best: string | null = null;
-  let bestCount = 0;
-  for (const [date, count] of counts) {
-    if (count > bestCount) {
-      best = date;
-      bestCount = count;
-    }
+  let best: { raw: string; count: number; date: Date } | null = null;
+  for (const [raw, { count, date }] of counts) {
+    if (!best || count > best.count) best = { raw, count, date };
   }
   if (!best) return null;
-  const weekday = weekdayPtBr(best);
-  if (!weekday) return null;
-  return `Dia da semana de ${best} (calculado automaticamente — use este, não calcule): ${weekday}`;
+  return pack.weekdayLine(best.raw, pack.weekdays[best.date.getDay()].name);
 }
 
 function clip(text: string, max: number): string {

@@ -18,8 +18,8 @@ export default async function DashboardPage() {
   const { locale, dict } = await getServerDictionary();
   const dateLocale = locale === "pt" ? "pt-BR" : "en-US";
 
-  // Precisa terminar ANTES de ler posts/log em paralelo — senão a leitura
-  // do log pode correr antes da linha ser inserida pela própria limpeza.
+  // It has to finish BEFORE reading posts/log in parallel — otherwise the log
+  // read can run before the row is inserted by the cleanup itself.
   await maybeCleanupExpiredPosts();
   const [posts, auditLogs] = await Promise.all([
     listPosts(user.companyId),
@@ -83,10 +83,10 @@ export default async function DashboardPage() {
                 )}
                 <div className="aspect-square bg-black">
                   {v?.selectedVideo?.previewFrameUrl ? (
-                    // Card do feed é só uma miniatura — usa o frame estático
-                    // do vídeo em vez do MP4 renderizado inteiro (evita
-                    // baixar um arquivo pesado só pra preencher uma célula
-                    // da grade). Mesmo frame que aparece no editor.
+                    // The feed card is only a thumbnail — it uses the video's static
+                    // frame instead of the whole rendered MP4 (avoids downloading a
+                    // heavy file just to fill a grid cell). Same frame shown in the
+                    // editor.
                     <div className="relative h-full w-full">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
@@ -102,9 +102,9 @@ export default async function DashboardPage() {
                       </span>
                     </div>
                   ) : v?.renderedVideoUrl ? (
-                    // Vídeo já renderizado mas sem frame de prévia (raro —
-                    // falha na extração): nunca embute o vídeo aqui, só um
-                    // indicador visual de que é um post de vídeo.
+                    // Video already rendered but with no preview frame (rare — an
+                    // extraction failure): never embeds the video here, only a visual
+                    // hint that it is a video post.
                     <div className="flex h-full items-center justify-center text-2xl text-faint" aria-hidden>
                       ▶
                     </div>

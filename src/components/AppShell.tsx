@@ -25,7 +25,7 @@ export function AppShell({ user, children }: Props) {
       href: "/admin",
       label: dict.appShell.navAdmin,
       icon: GearIcon,
-      // Staff também entra (estilo/templates) — AdminPanel restringe o resto por role.
+      // Staff gets in too (style/templates) — AdminPanel restricts the rest by role.
       roles: ["admin", "manager", "staff"] as UserRole[],
     },
   ];
@@ -79,7 +79,7 @@ export function AppShell({ user, children }: Props) {
         </div>
       </header>
 
-      {/* Espaço extra embaixo para a barra de navegação fixa do mobile */}
+      {/* Extra space at the bottom for the fixed mobile navigation bar */}
       <main className="mx-auto max-w-6xl px-4 pt-5 pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-10">
         {user.mustSetPassword && <ChangePasswordBanner />}
         {children}

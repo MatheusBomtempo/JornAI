@@ -1,14 +1,15 @@
 import "server-only";
 import { env } from "../env";
 import { ApiError, badRequest } from "../http";
+import { getLanguagePack } from "../language";
 
 /**
- * Busca de fotos embutida no passo "Imagem" (ver ImageSuggestions em
- * PostWorkspace) — o Pexels é um banco de imagens livre de direitos, com
- * API gratuita generosa (200 req/hora). Não é a foto real do fato (isso só
- * o Google Imagens acharia, e não dá pra embutir/automatizar: a página de
- * resultados bloqueia iframe e não há API gratuita equivalente) — serve só
- * como ilustração rápida, sem precisar sair do site pra baixar e reenviar.
+ * Built-in photo search in the "Image" step (see ImageSuggestions in
+ * PostWorkspace) — Pexels is a royalty-free image library with a generous free
+ * API (200 req/hour). It is not the real photo of the event (only Google
+ * Images would find that, and it cannot be embedded/automated: the results
+ * page blocks iframes and there is no equivalent free API) — it only serves as
+ * a quick illustration, without leaving the site to download and re-upload.
  */
 export interface PhotoSearchItem {
   id: number;
@@ -40,11 +41,11 @@ interface PexelsApiPhoto {
 const PER_PAGE = 15;
 const FETCH_TIMEOUT_MS = 10_000;
 /**
- * As buscas vêm das sugestões da IA — em português, como as notícias. Sem
- * locale o Pexels interpreta a busca em inglês: "galpão em chamas" trazia
- * foto de raposa; com pt-BR, 12 de 15 resultados eram de incêndio.
+ * The searches come from the AI's suggestions — written in the content
+ * language (APP_LANGUAGE), like the news. Without a locale Pexels reads the
+ * query as English: "galpão em chamas" returned a fox photo; with pt-BR, 12 of
+ * 15 results were about fires. The locale comes from the language pack.
  */
-const PEXELS_LOCALE = "pt-BR";
 
 export function isPhotoSearchEnabled(): boolean {
   return Boolean(env.photoSearch.pexelsKey);
@@ -56,7 +57,7 @@ export async function searchPhotos(
 ): Promise<{ photos: PhotoSearchItem[]; nextPage: number | null }> {
   const key = env.photoSearch.pexelsKey;
   if (!key) {
-    throw new ApiError(501, "Busca de fotos não configurada (defina PEXELS_API_KEY).");
+    throw new ApiError(501, "Photo search is not configured (set PEXELS_API_KEY).");
   }
 
   const controller = new AbortController();
@@ -64,13 +65,13 @@ export async function searchPhotos(
   let res: Response;
   try {
     res = await fetch(
-      `https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&per_page=${PER_PAGE}&page=${page}&locale=${PEXELS_LOCALE}`,
+      `https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&per_page=${PER_PAGE}&page=${page}&locale=${getLanguagePack().photoSearchLocale}`,
       { headers: { Authorization: key }, signal: controller.signal, cache: "no-store" },
     );
   } catch (err) {
     const why =
-      (err as Error).name === "AbortError" ? "tempo esgotado" : (err as Error).message;
-    throw new ApiError(502, `Pexels não respondeu (${why}).`);
+      (err as Error).name === "AbortError" ? "timed out" : (err as Error).message;
+    throw new ApiError(502, `Pexels did not answer (${why}).`);
   } finally {
     clearTimeout(timeout);
   }
@@ -79,7 +80,7 @@ export async function searchPhotos(
     | { photos?: PexelsApiPhoto[]; next_page?: string }
     | null;
   if (!res.ok) {
-    throw new ApiError(502, `Pexels recusou a busca (HTTP ${res.status}).`);
+    throw new ApiError(502, `Pexels refused the search (HTTP ${res.status}).`);
   }
 
   const photos: PhotoSearchItem[] = (body?.photos ?? [])
@@ -98,10 +99,10 @@ export async function searchPhotos(
   return { photos, nextPage: body?.next_page ? page + 1 : null };
 }
 
-// SSRF: este endpoint faz fetch de uma URL vinda do CLIENTE (a foto que a
-// pessoa clicou no picker) — sem essa checagem, seria um proxy genérico pra
-// baixar qualquer URL a partir do servidor. Só aceita subdomínios do Pexels
-// (é de onde vêm os "src.*" da própria busca, ex.: images.pexels.com).
+// SSRF: this endpoint fetches a URL that comes from the CLIENT (the photo the
+// person clicked in the picker) — without this check it would be a generic
+// proxy to download any URL from the server. It only accepts Pexels subdomains
+// (that is where the search's own "src.*" come from, e.g. images.pexels.com).
 const ALLOWED_DOWNLOAD_HOST = /(^|\.)pexels\.com$/i;
 
 export function assertPexelsDownloadUrl(raw: string): URL {
@@ -109,10 +110,10 @@ export function assertPexelsDownloadUrl(raw: string): URL {
   try {
     url = new URL(raw);
   } catch {
-    throw badRequest("URL de imagem inválida.");
+    throw badRequest("Invalid image URL.");
   }
   if (url.protocol !== "https:" || !ALLOWED_DOWNLOAD_HOST.test(url.hostname)) {
-    throw badRequest("Só é permitido importar imagens de images.pexels.com.");
+    throw badRequest("Only images from images.pexels.com can be imported.");
   }
   return url;
 }

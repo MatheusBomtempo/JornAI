@@ -28,7 +28,7 @@ import {
   type CompanyBrandColors,
 } from "@/lib/render/video-layout";
 
-/** Cor de fundo do cartão como rgba — só a caixa fica translúcida, o texto não. */
+/** Background color of the card as rgba — only the box is translucent, not the text. */
 function cardBackground(style: VideoCardStyle): string {
   const hex = style.cardFill.replace("#", "");
   const r = parseInt(hex.slice(0, 2), 16);
@@ -61,19 +61,19 @@ interface Props {
   onSaved?: () => void;
 }
 
-/** Acima disso o corte 9:16 come tanto da imagem que vale avisar. */
+/** Above this the 9:16 crop eats so much of the image that it is worth warning about. */
 const CROP_WARN_RATIO = 0.25;
-/** Quanto o jornalista pode subir/descer o bloco (px na escala 1080x1920). */
+/** How much the reporter can raise/lower the block (px on the 1080x1920 scale). */
 const OFFSET_RANGE = 420;
 
 /**
- * Equivalente ao ArtEditor pro post de vídeo: sem slots de foto — só
- * escolher o vídeo, o texto que entra animado, o estilo do cartão (3 fixos,
- * ver buildVideoCardStyles) e a altura do bloco. O preview usa um frame REAL do
- * meio do vídeo (já no mesmo enquadramento 9:16 do servidor, fundo desfocado
- * incluso pra vídeos deitados) com as réguas da área segura do Reels por
- * cima, então o que aparece aqui é onde o texto de fato cai no vídeo
- * renderizado.
+ * The ArtEditor equivalent for the video post: no photo slots — just choosing
+ * the video, the text that comes in animated, the card style (3 fixed ones, see
+ * buildVideoCardStyles) and the height of the block. The preview uses a REAL
+ * frame from the middle of the video (already in the same 9:16 framing as the
+ * server, blurred background included for landscape videos) with the Reels
+ * safe-area rulers on top, so what shows up here is where the text really
+ * lands in the rendered video.
  */
 export function VideoEditor({
   postId,
@@ -108,13 +108,13 @@ export function VideoEditor({
   async function save() {
     if (!video) return;
     setSaving(true);
-    // Loading/erro/sucesso vão pro modal (ActionOverlay) — o render do
-    // ffmpeg demora e o erro dele é longo; lá cabe inteiro e rola.
+    // Loading/error/success go to the modal (ActionOverlay) — the ffmpeg render
+    // is slow and its error is long; there it fits whole and scrolls.
     const result = await run({
       title: dict.videoEditor.savingButton,
       success: dict.videoEditor.doneMessage,
-      // Render saudável leva dezenas de segundos (24 s pra 6 s de vídeo
-      // deitado, medido em produção) — só avisa de lentidão bem depois disso.
+      // A healthy render takes tens of seconds (24 s for 6 s of landscape
+      // video, measured in production) — only warns about slowness well after that.
       slowAfterSeconds: 120,
       fn: () =>
         apiPost(`/api/posts/${postId}/video`, {
@@ -128,8 +128,8 @@ export function VideoEditor({
     if (result.ok) onSaved?.();
   }
 
-  // Tudo no preview é % do canvas 1080x1920 — assim escala com a largura da
-  // tela sem perder a correspondência com o render do servidor.
+  // Everything in the preview is a % of the 1080x1920 canvas — so it scales with
+  // the screen width without losing the match with the server render.
   const pct = (px: number, total: number) => `${(px / total) * 100}%`;
 
   return (
@@ -137,8 +137,8 @@ export function VideoEditor({
       <div className="mx-auto w-full max-w-[320px]">
         <div
           className="relative overflow-hidden rounded-xl border border-line bg-black"
-          // container-type: size faz `cqw`/`cqh` medirem ESTE box — é o que
-          // mantém a fonte e a logo do preview na mesma proporção do 1080x1920.
+          // container-type: size makes `cqw`/`cqh` measure THIS box — it is what
+          // keeps the preview font and logo in the same proportion as 1080x1920.
           style={{
             aspectRatio: `${VIDEO_WIDTH} / ${VIDEO_HEIGHT}`,
             containerType: "size",
@@ -157,7 +157,7 @@ export function VideoEditor({
             </div>
           )}
 
-          {/* Réguas: faixas que a UI do Reels cobre. */}
+          {/* Rulers: bands that the Reels UI covers. */}
           {showGuides && (
             <>
               <div
@@ -190,7 +190,7 @@ export function VideoEditor({
             </>
           )}
 
-          {/* Bloco de texto + logo, ancorado no fim da área segura. */}
+          {/* Text block + logo, anchored at the end of the safe area. */}
           <div
             className="absolute flex flex-col items-center"
             style={{

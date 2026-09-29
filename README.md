@@ -44,6 +44,17 @@ Feeding a police report or an official PDF straight into an LLM is a good way to
 - AI: any OpenAI-compatible or Anthropic-compatible text provider (OpenRouter, Groq, Gemini, OpenAI, Claude), with automatic fallback across providers
 - Instagram Graph API for publishing
 
+## Working language
+
+JornAI works in one language per deployment — the language of the sources and of the generated posts — chosen with the `APP_LANGUAGE` environment variable:
+
+| Value | Effect |
+|---|---|
+| `pt` (default) | Posts are written in Brazilian Portuguese; source cleanup, personal-data redaction and the fact validator use Brazilian rules (CPF, plates, police-report forms, `dd/mm/yyyy` dates). |
+| `en` | Posts are written in English; same pipeline with English rules (SSN, US phone numbers, `mm/dd/yyyy` dates). |
+
+The prompts themselves are written in English; only the examples and rules the model must reproduce live in the language pack (`src/lib/language/<lang>/`). To add a language, add a pack there and register it in `src/lib/language/index.ts`. `APP_LANGUAGE` also sets the default interface language (each person can still switch it in the UI); the code, comments and logs are always English.
+
 ## Roles
 
 | Role | Can do |
@@ -64,7 +75,7 @@ npm run dev
 
 No AI key yet? Set `AI_PROVIDER="mock"` in `.env` to run the whole flow with a stub AI response — useful for trying the app without any external service.
 
-See [`SPEC.md`](SPEC.md) (in Portuguese) for the full technical spec: database schema, API endpoints, and state machine.
+See [`SPEC.md`](SPEC.md) for the full technical spec: database schema, API endpoints, and state machine.
 
 ## License
 

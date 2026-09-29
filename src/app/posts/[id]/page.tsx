@@ -30,8 +30,8 @@ export default async function PostPage({
   ]);
   const sortedTemplates = sortTemplatesByFormat(templatesRaw);
 
-  // Serializa para props client-safe (datas -> ISO, JSON -> tipado).
-  // Ordenado com 4:5 primeiro — é o formato pré-selecionado no editor.
+  // Serializes to client-safe props (dates -> ISO, JSON -> typed).
+  // Sorted with 4:5 first — it is the format pre-selected in the editor.
   const templates: EditorTemplate[] = sortedTemplates.map((t) => ({
     id: t.id,
     name: t.name,

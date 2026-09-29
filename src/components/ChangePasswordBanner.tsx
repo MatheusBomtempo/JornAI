@@ -6,9 +6,9 @@ import { apiPost } from "@/lib/api-client";
 import { useLocale } from "./LocaleProvider";
 
 /**
- * Sugestão (não bloqueia) pra quem ainda está na senha temporária
- * "sucessoNN" trocar por uma senha própria. Some quando a troca é feita
- * (passwordResetAt zera) ou se a pessoa dispensar nesta sessão.
+ * Suggestion (does not block) for whoever is still on the temporary password
+ * "successNN" to swap it for their own. It goes away when the change is made
+ * (passwordResetAt zeroes) or if the person dismisses it in this session.
  */
 export function ChangePasswordBanner() {
   const router = useRouter();

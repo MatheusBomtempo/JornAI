@@ -1,21 +1,17 @@
 import type { AiProvider, GenerateInput, GeneratedContent } from "./types";
 
-/**
- * Erros de limite de taxa/cota — nesses casos vale a pena pular pro próximo
- * elo da corrente na hora (não adianta insistir no mesmo provider).
- */
 function describe(err: unknown): string {
   return (err as Error)?.message ?? String(err);
 }
 
 /**
- * Encadeia vários provedores de IA: tenta o primeiro e, se falhar por
- * QUALQUER motivo (limite de taxa, modelo fora do ar, timeout, chave
- * inválida...), passa pro próximo — cada um com conta e cota independentes,
- * então um provedor inteiro fora do ar não trava a geração do post.
+ * Chains several AI providers: tries the first and, if it fails for ANY
+ * reason (rate limit, model down, timeout, invalid key...), moves on to the
+ * next — each one has its own account and quota, so a whole provider being
+ * down does not block post generation.
  *
- * Diferente do retry dentro de um único provider (que não adianta pra erro
- * de limite de taxa), aqui trocar de provider é exatamente a solução certa.
+ * Unlike a retry inside a single provider (which does not help with a rate
+ * limit error), switching provider is exactly the right fix here.
  */
 export class ChainProvider implements AiProvider {
   readonly name = "chain";
@@ -24,7 +20,7 @@ export class ChainProvider implements AiProvider {
   constructor(links: AiProvider[]) {
     if (links.length === 0) {
       throw new Error(
-        "Nenhum provedor de IA configurado (verifique as chaves de API no .env).",
+        "No AI provider configured (check the API keys in .env).",
       );
     }
     this.links = links;
@@ -39,12 +35,12 @@ export class ChainProvider implements AiProvider {
       } catch (err) {
         const msg = describe(err);
         failures.push(`${provider.name}: ${msg}`);
-        console.warn(`[JornAI] IA (${provider.name}) falhou, tentando próximo da corrente: ${msg}`);
+        console.warn(`[JornAI] AI (${provider.name}) failed, trying the next one in the chain: ${msg}`);
       }
     }
 
     throw new Error(
-      `Todos os provedores de IA falharam. Tentativas:\n${failures.join("\n")}`,
+      `All AI providers failed. Attempts:\n${failures.join("\n")}`,
     );
   }
 }
