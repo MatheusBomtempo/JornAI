@@ -22,7 +22,7 @@ export function LanguageSwitcher({ className = "" }: { className?: string }) {
           onClick={() => setLocale(option)}
           aria-pressed={locale === option}
           className={`rounded-full px-3 py-1.5 transition-colors ${
-            locale === option ? "bg-brand-500 text-white" : "text-muted hover:text-ink"
+            locale === option ? "bg-brand-500 text-black" : "text-muted hover:text-ink"
           }`}
         >
           {dict.common.language[option]}

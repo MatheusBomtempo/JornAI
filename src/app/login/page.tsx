@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { apiPost } from "@/lib/api-client";
 import { useLocale } from "@/components/LocaleProvider";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { Logo } from "@/components/Logo";
 
 export default function LoginPage() {
   return (
@@ -45,8 +46,8 @@ function LoginForm() {
         </div>
 
         <div className="mb-7 text-center">
-          <div className="text-3xl font-extrabold tracking-tight">
-            Jorn<span className="text-brand-400">AI</span>
+          <div className="flex justify-center">
+            <Logo size="lg" />
           </div>
           <p className="mt-2 text-sm text-muted">{dict.login.tagline}</p>
         </div>

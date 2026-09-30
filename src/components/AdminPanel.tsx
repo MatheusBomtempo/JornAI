@@ -40,7 +40,7 @@ export function AdminPanel({ role }: { role: UserRole }) {
                 onClick={() => setTab(t.id)}
                 className={`whitespace-nowrap rounded-xl px-3.5 py-2 text-sm font-medium transition-colors ${
                   tab === t.id
-                    ? "bg-brand-500 text-white"
+                    ? "bg-brand-500 text-black"
                     : "bg-elevated text-muted hover:text-ink"
                 }`}
               >

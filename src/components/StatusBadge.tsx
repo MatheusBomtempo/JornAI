@@ -6,7 +6,7 @@ import { useLocale } from "./LocaleProvider";
 const COLORS: Record<string, string> = {
   processing_ai: "bg-amber-500/15 text-amber-300 ring-1 ring-inset ring-amber-500/25",
   editing_art: "bg-brand-500/15 text-brand-300 ring-1 ring-inset ring-brand-500/25",
-  in_review: "bg-violet-500/15 text-violet-300 ring-1 ring-inset ring-violet-500/25",
+  in_review: "bg-white/10 text-neutral-200 ring-1 ring-inset ring-white/20",
   approved: "bg-emerald-500/15 text-emerald-300 ring-1 ring-inset ring-emerald-500/25",
   publishing: "bg-cyan-500/15 text-cyan-300 ring-1 ring-inset ring-cyan-500/25",
   published: "bg-emerald-500 text-white",

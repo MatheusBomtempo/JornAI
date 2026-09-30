@@ -37,7 +37,7 @@ export function Stepper({ steps, current, reachable = current, onStepClick }: Pr
             >
               <span
                 className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] ${
-                  active ? "bg-brand-500 text-white" : done ? "bg-emerald-500/20" : "bg-line"
+                  active ? "bg-brand-500 text-black" : done ? "bg-emerald-500/20" : "bg-line"
                 }`}
               >
                 {done ? "✓" : i + 1}

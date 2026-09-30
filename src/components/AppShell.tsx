@@ -7,6 +7,7 @@ import { type UserRole } from "@/lib/domain";
 import { ChangePasswordBanner } from "./ChangePasswordBanner";
 import { useLocale } from "./LocaleProvider";
 import { LanguageSwitcher } from "./LanguageSwitcher";
+import { Logo } from "./Logo";
 
 interface Props {
   user: { name: string; role: UserRole; mustSetPassword?: boolean };
@@ -42,8 +43,8 @@ export function AppShell({ user, children }: Props) {
       {/* Topo */}
       <header className="sticky top-0 z-30 border-b border-line bg-bg/85 backdrop-blur-xl">
         <div className="mx-auto flex max-w-6xl items-center gap-4 px-4 py-3">
-          <Link href="/dashboard" className="text-lg font-extrabold tracking-tight">
-            Jorn<span className="text-brand-400">AI</span>
+          <Link href="/dashboard" aria-label="JornAI">
+            <Logo size="sm" />
           </Link>
 
           {/* Nav desktop */}
