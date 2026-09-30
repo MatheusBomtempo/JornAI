@@ -10,9 +10,9 @@ const SIZES = {
  */
 export function Logo({ size = "sm" }: { size?: keyof typeof SIZES }) {
   return (
-    <span className={`inline-flex items-center gap-[0.3em] leading-none ${SIZES[size]}`}>
+    <span className={`inline-flex items-baseline gap-[0.3em] leading-none ${SIZES[size]}`}>
       <span className="font-masthead font-extrabold tracking-tight">Jorn</span>
-      <span className="rounded-[0.28em] bg-white px-[0.3em] py-[0.16em] font-sans text-[0.8em] font-extrabold tracking-tight text-black">
+      <span className="relative -top-[0.18em] rounded-[0.2em] bg-white px-[0.22em] py-[0.11em] font-sans text-[0.55em] font-extrabold tracking-tight text-black">
         AI
       </span>
     </span>
