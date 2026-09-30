@@ -14,9 +14,9 @@ An open-source web tool that lets a newsroom publish breaking-news posts to Inst
 
 <br />
 
-<img src="docs/screenshots/2-media.png" alt="JornAI editor: photo framed on the brand template with AI-written title and subtitle" width="100%" />
+<img src="docs/screenshots/feed.png" alt="JornAI story feed with posts in review" width="100%" />
 
-<sub>Paste a source → AI drafts the post → frame the photo → a human approves and publishes.</sub>
+<sub>Every story in one feed: paste a source → AI drafts the post → frame the photo → a human approves and publishes.</sub>
 
 </div>
 
