@@ -116,14 +116,14 @@ Feeding a police report or an official PDF straight into an LLM is a good way to
 
 ## Working language
 
-JornAI works in one language per deployment — the language of the sources and of the generated posts — chosen with the `APP_LANGUAGE` environment variable:
+JornAI works in **any language** — one per deployment: the language of the sources and of the generated posts, chosen with the `APP_LANGUAGE` environment variable. Each language is a small pack with its own rules for source cleanup, personal-data redaction and the fact validator. Two ship today, as examples:
 
-| Value | Effect |
+| Value | Example of what the pack covers |
 |---|---|
-| `en` (default) | Posts are written in English; source cleanup, personal-data redaction and the fact validator use English rules (SSN, US phone numbers, `mm/dd/yyyy` dates). |
-| `pt` | Posts are written in Brazilian Portuguese; same pipeline with Brazilian rules (CPF, plates, police-report forms, `dd/mm/yyyy` dates). |
+| `en` (default) | Posts in English; English rules (SSN, US phone numbers, `mm/dd/yyyy` dates). |
+| `pt` | Posts in Brazilian Portuguese; Brazilian rules (CPF, plates, police-report forms, `dd/mm/yyyy` dates). |
 
-The prompts themselves are written in English; only the examples and rules the model must reproduce live in the language pack (`src/lib/language/<lang>/`). To add a language, add a pack there and register it in `src/lib/language/index.ts` — see [CONTRIBUTING.md](CONTRIBUTING.md). `APP_LANGUAGE` also sets the default interface language (each person can still switch it in the UI); the code, comments and logs are always English.
+The prompts themselves are written in English; only the examples and rules the model must reproduce live in the language pack (`src/lib/language/<lang>/`). To add your language, add a pack there and register it in `src/lib/language/index.ts` — see [CONTRIBUTING.md](CONTRIBUTING.md). `APP_LANGUAGE` also sets the default interface language (each person can still switch it in the UI); the code, comments and logs are always English.
 
 ## Tech stack
 
@@ -157,20 +157,34 @@ Open <http://localhost:3000> and sign in with `admin@jornai.local` / `admin12345
 
 No AI key yet? Keep `AI_PROVIDER="mock"` in `.env` to run the whole flow with a stub AI response — useful for trying the app without any external service.
 
-### Configuration
+## Setup before your first post
 
-Everything is configured through environment variables — see [`.env.example`](.env.example), which documents each one. The important ones:
+Two kinds of configuration, done once, in this order:
+
+### 1 · Program configuration (for whoever runs it)
+
+Everything technical is configured through environment variables — see [`.env.example`](.env.example), which documents each one. The important ones:
 
 | Variable | What it does |
 |---|---|
-| `APP_LANGUAGE` | Working language: `en` or `pt` |
+| `APP_LANGUAGE` | Working language (`en` and `pt` ship as examples; add your own pack) |
 | `DATABASE_URL` / `DIRECT_URL` | PostgreSQL connection |
 | `AUTH_SECRET` | Signs the session JWTs |
 | `AI_PROVIDER` | `mock`, `chain` (fallback across providers), `openrouter`, `groq`, `gemini`, `openai`, `anthropic` |
 | `STORAGE_PROVIDER` | `local` (dev) or `s3` (S3 / Cloudflare R2 / Supabase) |
 | `IG_USER_ID` / `IG_ACCESS_TOKEN` | Instagram Graph API publishing |
 
-### Deploying
+### 2 · Style configuration (for the newsroom, in the app)
+
+> **TL;DR:** before the first post, open **Admin** and make JornAI look and sound like your newsroom. It takes a few minutes and you only do it once.
+
+- **Company** — your name, logo, Instagram `@` and brand colors (the logo and colors show up on the art and on the video title cards). On the very first login the admin is guided through this.
+- **Templates** — build your photo frame with the [template builder](#make-the-template-yours): 4:5 or 1:1, your overlay PNG, title and subtitle positions and text style.
+- **Newsroom style** — paste a few real posts so the AI learns your tone and format.
+
+You can come back and change any of these later.
+
+## Deploying
 
 The project deploys as a regular Next.js app (it is developed against Vercel + Neon + Cloudflare R2). `npm run build` applies the Prisma migrations, so the build needs the database configured.
 
