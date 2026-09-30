@@ -58,9 +58,15 @@ An open-source web tool that lets a newsroom publish breaking-news posts to Inst
 > **TL;DR:** the admin area is where a newsroom makes JornAI sound and look like itself.
 
 - **Newsroom style** — register real posts from your newsroom; the AI learns the *tone and format* (it never copies the content).
-- **Templates** — build photo templates visually: upload your overlay, place the photo, title and subtitle slots.
+- **Templates** — build photo templates visually (see below).
 - **Users & roles** — admin, manager and reporter, each company isolated from the others.
 - **API keys, Company, Settings, AI balance** — connect providers, set your logo and brand colors, toggle mandatory review, watch your AI spend.
+
+### Make the template yours
+
+<img src="docs/screenshots/template-builder.png" alt="Template builder: drag the title and subtitle boxes over the frame, set size, color, weight, alignment and case" width="100%" />
+
+> **TL;DR:** the photo template is the heart of JornAI, and it is fully customizable — upload your brand frame (a transparent PNG made in Canva or Photoshop), drag the title and subtitle boxes where you want them, and pick the format (4:5 or 1:1), font size, color, weight, alignment and case. Video is simpler on purpose: it ships with **3 ready-made title-card styles** (classic, light, bold) that pick up your brand colors.
 
 ---
 
