@@ -6,7 +6,7 @@
 
 An open-source web tool that lets a newsroom publish breaking-news posts to Instagram with almost no friction: paste a police report, a press release or a link, and get a ready-to-review post with a title, subtitle and caption — built on a pipeline designed *not* to invent facts.
 
-[![CI](https://github.com/MatheusBomtempo/JornIA/actions/workflows/ci.yml/badge.svg)](https://github.com/MatheusBomtempo/JornIA/actions/workflows/ci.yml)
+[![CI](https://github.com/MatheusBomtempo/JornAI/actions/workflows/ci.yml/badge.svg)](https://github.com/MatheusBomtempo/JornAI/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![Next.js](https://img.shields.io/badge/Next.js-15-black?logo=nextdotjs)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6?logo=typescript&logoColor=white)
@@ -143,8 +143,8 @@ The prompts themselves are written in English; only the examples and rules the m
 ## Getting started
 
 ```bash
-git clone https://github.com/MatheusBomtempo/JornIA.git
-cd JornIA
+git clone https://github.com/MatheusBomtempo/JornAI.git
+cd JornAI
 npm install
 docker compose up -d       # PostgreSQL that matches .env.example (or bring your own)
 cp .env.example .env       # fill in DATABASE_URL and, optionally, an AI provider key

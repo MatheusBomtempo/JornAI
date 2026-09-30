@@ -3,13 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "description": "Fast Instagram publishing for newsrooms, with AI-assisted text and editorial review before publishing.",
-  "homepage": "https://github.com/MatheusBomtempo/JornIA#readme",
+  "homepage": "https://github.com/MatheusBomtempo/JornAI#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/MatheusBomtempo/JornIA.git"
+    "url": "git+https://github.com/MatheusBomtempo/JornAI.git"
   },
   "bugs": {
-    "url": "https://github.com/MatheusBomtempo/JornIA/issues"
+    "url": "https://github.com/MatheusBomtempo/JornAI/issues"
   },
   "keywords": [
     "newsroom",
