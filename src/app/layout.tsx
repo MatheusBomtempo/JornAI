@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Poppins } from "next/font/google";
+import { Inter, Playfair_Display, Poppins } from "next/font/google";
 import { getServerDictionary } from "@/lib/i18n/server";
 import { LocaleProvider } from "@/components/LocaleProvider";
 import { ActionOverlayProvider } from "@/components/ActionOverlay";
@@ -16,6 +16,13 @@ const poppins = Poppins({
   variable: "--font-art",
 });
 
+// Newspaper-style serif used by the "Jorn" half of the logo.
+const playfair = Playfair_Display({
+  subsets: ["latin"],
+  weight: ["800"],
+  variable: "--font-masthead",
+});
+
 export async function generateMetadata(): Promise<Metadata> {
   const { dict } = await getServerDictionary();
   return {
@@ -28,7 +35,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: "#0a0c10",
+  themeColor: "#000000",
 };
 
 export default async function RootLayout({
@@ -40,7 +47,7 @@ export default async function RootLayout({
   return (
     <html
       lang={locale === "pt" ? "pt-BR" : "en"}
-      className={`dark ${inter.variable} ${poppins.variable}`}
+      className={`dark ${inter.variable} ${poppins.variable} ${playfair.variable}`}
     >
       <body className="font-sans antialiased">
         <LocaleProvider initialLocale={locale}>

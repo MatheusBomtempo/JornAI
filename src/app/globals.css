@@ -4,8 +4,8 @@
 
 :root {
   color-scheme: dark;
-  --bg: #0a0c10;
-  --surface: #12151b;
+  --bg: #000000;
+  --surface: #0a0a0a;
 }
 
 * {
@@ -20,9 +20,9 @@ body {
 
 body {
   background:
-    radial-gradient(1100px 520px at 50% -12%, rgba(77, 124, 255, 0.09), transparent 60%),
+    radial-gradient(1100px 520px at 50% -12%, rgba(255, 255, 255, 0.06), transparent 60%),
     var(--bg);
-  color: #e8ecf3;
+  color: #ededed;
   min-height: 100dvh;
 }
 
@@ -32,13 +32,13 @@ body {
   height: 10px;
 }
 ::-webkit-scrollbar-thumb {
-  background: #252b36;
+  background: #262626;
   border-radius: 999px;
   border: 2px solid transparent;
   background-clip: content-box;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #333b49;
+  background: #404040;
   background-clip: content-box;
 }
 
@@ -50,7 +50,7 @@ body {
            focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/60;
   }
   .btn-primary {
-    @apply btn bg-brand-500 text-white hover:bg-brand-400 active:bg-brand-600;
+    @apply btn bg-brand-500 text-black hover:bg-brand-400 active:bg-brand-600;
   }
   .btn-ghost {
     @apply btn border border-line bg-elevated text-ink hover:border-brand-500/50 hover:bg-line/60;

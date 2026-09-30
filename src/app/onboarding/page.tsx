@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { getServerDictionary } from "@/lib/i18n/server";
 import { CompanyOnboardingForm } from "@/components/CompanyOnboardingForm";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { Logo } from "@/components/Logo";
 
 export const dynamic = "force-dynamic";
 
@@ -21,8 +22,8 @@ export default async function OnboardingPage() {
         </div>
 
         <div className="mb-7 text-center">
-          <div className="text-3xl font-extrabold tracking-tight">
-            Jorn<span className="text-brand-400">AI</span>
+          <div className="flex justify-center">
+            <Logo size="lg" />
           </div>
           <p className="mt-2 text-sm text-muted">{dict.onboarding.tagline}</p>
         </div>

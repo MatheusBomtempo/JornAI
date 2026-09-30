@@ -55,7 +55,7 @@ export async function sendCredentialsEmail(params: {
         </tr>
       </table>
       <p>
-        <a href="${loginUrl}" style="display: inline-block; background: #4d7cff; color: #fff; padding: 10px 18px; border-radius: 10px; text-decoration: none; font-weight: 600;">
+        <a href="${loginUrl}" style="display: inline-block; background: #000; color: #fff; padding: 10px 18px; border-radius: 10px; text-decoration: none; font-weight: 600;">
           ${t.signIn}
         </a>
       </p>

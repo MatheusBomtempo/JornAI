@@ -359,11 +359,11 @@ export function ArtEditor({ postId, photos, templates, initial, onSaved }: Props
         lockRotation: true,
         lockSkewingX: true,
         lockSkewingY: true,
-        cornerColor: "#4d7cff",
+        cornerColor: "#ffffff",
         cornerStrokeColor: "#fff",
         cornerSize: 14,
         transparentCorners: false,
-        borderColor: "#4d7cff",
+        borderColor: "#ffffff",
       });
       img.setControlsVisibility({
         ml: false, mr: false, mt: false, mb: false, mtr: false,
@@ -606,7 +606,7 @@ export function ArtEditor({ postId, photos, templates, initial, onSaved }: Props
                     {t.name}
                   </div>
                   {active && (
-                    <span className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-brand-500 text-[10px] text-white">
+                    <span className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-brand-500 text-[10px] text-black">
                       ✓
                     </span>
                   )}
