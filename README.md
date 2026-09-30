@@ -14,15 +14,53 @@ An open-source web tool that lets a newsroom publish breaking-news posts to Inst
 
 <br />
 
-<img src="docs/screenshots/capture.jpg" alt="Capture screen" width="250" />
-&nbsp;
-<img src="docs/screenshots/feed.jpg" alt="Story feed with quick approve/reject" width="250" />
-&nbsp;
-<img src="docs/screenshots/review.jpg" alt="Instagram-style review preview" width="250" />
+<img src="docs/screenshots/2-media.png" alt="JornAI editor: photo framed on the brand template with AI-written title and subtitle" width="100%" />
 
-<sub>Mobile-first: capture → feed with one-tap approve/reject → Instagram-style review.</sub>
+<sub>Paste a source → AI drafts the post → frame the photo → a human approves and publishes.</sub>
 
 </div>
+
+---
+
+## See it in action
+
+### 1 · Drop in your source
+
+<img src="docs/screenshots/1-new-story.png" alt="New story screen with a pasted link, credits and the Generate button" width="100%" />
+
+> **TL;DR:** paste a text, an article link or a PDF, optionally credit someone (📸 `@photographer`), and hit **Generate**. The AI writes the title, subtitle and caption — and never touches the photo.
+
+### 2 · Frame the photo, tweak the text
+
+<img src="docs/screenshots/2-media.png" alt="Media step: photo framed on the brand template with editable title and subtitle" width="100%" />
+
+> **TL;DR:** drag and zoom the photo, drag the title or subtitle to reposition them, edit the words (69 / 149 character limits). The brand template stays intact; only this post changes. What you see is exactly what the server renders.
+
+**Video (Reels) works too.** Upload a clip instead of a photo and JornAI handles the boring parts:
+
+- Normalizes any video to **9:16** — already-vertical clips are cropped top and bottom; landscape clips are kept whole over a blurred, mirrored backdrop instead of ugly black bars.
+- Keeps the title card and logo inside Instagram's **safe zones**, so the profile, caption and buttons never cover them.
+- Burns in an **animated title card** (slide + fade) in one of three styles, using your brand colors.
+- Fixes phone-recorded videos that arrive rotated.
+
+### 3 · Review and publish
+
+<img src="docs/screenshots/3-review.png" alt="Review step with an Instagram-style preview and the approve / request rewrite / reject actions" width="100%" />
+
+> **TL;DR:** see the post exactly as it will look on Instagram, then **Approve and publish**, **Request rewrite** (the AI writes a new version) or **Reject** with a reason. Every change is a new version, so the full history is kept.
+
+---
+
+## Built for newsrooms
+
+<img src="docs/screenshots/admin.png" alt="Administration panel tabs: Newsroom style, Templates, Users, API keys, Company, Settings, AI balance" width="100%" />
+
+> **TL;DR:** the admin area is where a newsroom makes JornAI sound and look like itself.
+
+- **Newsroom style** — register real posts from your newsroom; the AI learns the *tone and format* (it never copies the content).
+- **Templates** — build photo templates visually: upload your overlay, place the photo, title and subtitle slots.
+- **Users & roles** — admin, manager and reporter, each company isolated from the others.
+- **API keys, Company, Settings, AI balance** — connect providers, set your logo and brand colors, toggle mandatory review, watch your AI spend.
 
 ---
 
