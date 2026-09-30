@@ -15,7 +15,9 @@ export async function middleware(req: NextRequest) {
   const token = req.cookies.get(SESSION_COOKIE)?.value;
   const session = await verifySession(token);
 
-  const isPublic = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
+  // "/" is the public landing page; anyone with a session is still sent
+  // straight to the dashboard (same as the `isPublic` + session branch below).
+  const isPublic = pathname === "/" || PUBLIC_PATHS.some((p) => pathname.startsWith(p));
   const isOnboarding = pathname.startsWith(ONBOARDING_PATH);
   // `undefined` = cookie signed before this field existed (old session);
   // treated as "has a company" until the person logs in again — only `null`
