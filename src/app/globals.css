@@ -12,6 +12,35 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
+::selection {
+  background: #ffffff;
+  color: #000000;
+}
+
+/* Horizontal scrollers (e.g. the feed filter chips) without a visible bar */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 html,
 body {
   max-width: 100vw;
@@ -47,13 +76,13 @@ body {
   .btn {
     @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold
            transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-45
-           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/60;
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2 focus-visible:ring-offset-bg;
   }
   .btn-primary {
     @apply btn bg-brand-500 text-black hover:bg-brand-400 active:bg-brand-600;
   }
   .btn-ghost {
-    @apply btn border border-line bg-elevated text-ink hover:border-brand-500/50 hover:bg-line/60;
+    @apply btn border border-line bg-elevated text-ink hover:border-white/30 hover:bg-line/60;
   }
   .btn-subtle {
     @apply btn text-muted hover:bg-elevated hover:text-ink;
@@ -98,7 +127,7 @@ body {
   .input {
     @apply w-full rounded-xl border border-line bg-elevated px-3.5 py-3 text-base text-ink
            placeholder:text-faint outline-none transition
-           focus:border-brand-500 focus:ring-2 focus:ring-brand-500/25
+           focus:border-white/60 focus:ring-2 focus:ring-white/15
            md:py-2.5 md:text-sm;
   }
   .label {

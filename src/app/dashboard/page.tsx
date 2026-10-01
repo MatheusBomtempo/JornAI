@@ -11,7 +11,11 @@ import { POST_STATUS } from "@/lib/domain";
 
 export const dynamic = "force-dynamic";
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ status?: string }>;
+}) {
   const user = await getCurrentUser();
   if (!user || !user.companyId) return null;
 
@@ -21,24 +25,55 @@ export default async function DashboardPage() {
   // It has to finish BEFORE reading posts/log in parallel — otherwise the log
   // read can run before the row is inserted by the cleanup itself.
   await maybeCleanupExpiredPosts();
-  const [posts, auditLogs] = await Promise.all([
+  const [allPosts, auditLogs, { status: statusFilter }] = await Promise.all([
     listPosts(user.companyId),
     listAuditLogs(user.companyId),
+    searchParams,
   ]);
+
+  // Status chips: only statuses that actually have posts, in pipeline order.
+  const statusCounts = new Map<string, number>();
+  for (const p of allPosts) statusCounts.set(p.status, (statusCounts.get(p.status) ?? 0) + 1);
+  const chips = Object.values(POST_STATUS).filter((s) => statusCounts.has(s));
+  const activeFilter = statusFilter && statusCounts.has(statusFilter) ? statusFilter : null;
+  const posts = activeFilter ? allPosts.filter((p) => p.status === activeFilter) : allPosts;
 
   return (
     <AppShell user={{ name: user.name, role: user.role, mustSetPassword: user.passwordResetAt !== null }}>
-      <div className="mb-5 flex items-center justify-between gap-3">
+      <div className="mb-4 flex items-end justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold tracking-tight">{dict.dashboard.title}</h1>
-          <p className="text-sm text-muted">
-            {posts.length} {posts.length === 1 ? dict.dashboard.postCountOne : dict.dashboard.postCountOther}
+          <h1 className="text-2xl font-semibold tracking-tight">{dict.dashboard.title}</h1>
+          <p className="mt-0.5 text-sm text-muted">
+            {allPosts.length}{" "}
+            {allPosts.length === 1 ? dict.dashboard.postCountOne : dict.dashboard.postCountOther}
           </p>
         </div>
-        <Link href="/capture" className="btn-primary shrink-0">
+        {/* On phones the bottom bar already has a big "new story" button. */}
+        <Link href="/capture" className="btn-primary hidden shrink-0 md:inline-flex">
           {dict.dashboard.newStory}
         </Link>
       </div>
+
+      {chips.length > 1 && (
+        <nav
+          aria-label={dict.dashboard.filterLabel}
+          className="no-scrollbar -mx-4 mb-5 flex gap-2 overflow-x-auto px-4 pb-1"
+        >
+          <FilterChip href="/dashboard" active={!activeFilter} count={allPosts.length}>
+            {dict.dashboard.filterAll}
+          </FilterChip>
+          {chips.map((s) => (
+            <FilterChip
+              key={s}
+              href={`/dashboard?status=${s}`}
+              active={activeFilter === s}
+              count={statusCounts.get(s) ?? 0}
+            >
+              {dict.common.status[s]}
+            </FilterChip>
+          ))}
+        </nav>
+      )}
 
       {posts.length === 0 ? (
         <div className="card px-6 py-14 text-center">
@@ -52,8 +87,8 @@ export default async function DashboardPage() {
           </Link>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {posts.map((post) => {
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
+          {posts.map((post, index) => {
             const v = post.versions[0];
             const isFinished =
               post.status === POST_STATUS.PUBLISHED || post.status === POST_STATUS.REJECTED;
@@ -67,7 +102,7 @@ export default async function DashboardPage() {
               <Link
                 key={post.id}
                 href={`/posts/${post.id}`}
-                className="card group relative overflow-hidden transition-colors hover:border-brand-500/50"
+                className="card group relative flex flex-wrap overflow-hidden transition-colors hover:border-white/25 sm:block"
               >
                 {canReview && v && (
                   <CardQuickActions
@@ -81,7 +116,7 @@ export default async function DashboardPage() {
                 {(isManagerOrAdmin || post.author.id === user.id) && (
                   <DeletePostButton postId={post.id} />
                 )}
-                <div className="aspect-square bg-black">
+                <div className="aspect-square w-28 shrink-0 self-start bg-black sm:w-auto">
                   {v?.selectedVideo?.previewFrameUrl ? (
                     // The feed card is only a thumbnail — it uses the video's static
                     // frame instead of the whole rendered MP4 (avoids downloading a
@@ -92,6 +127,8 @@ export default async function DashboardPage() {
                       <img
                         src={v.selectedVideo.previewFrameUrl}
                         alt={v.title ?? dict.instagramPreview.artAlt}
+                        loading={index < 3 ? "eager" : "lazy"}
+                        decoding="async"
                         className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
                       />
                       <span
@@ -113,6 +150,8 @@ export default async function DashboardPage() {
                     <img
                       src={v.renderedArtUrl}
                       alt={v.title ?? dict.instagramPreview.artAlt}
+                      loading={index < 3 ? "eager" : "lazy"}
+                      decoding="async"
                       className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
                     />
                   ) : (
@@ -121,7 +160,7 @@ export default async function DashboardPage() {
                     </div>
                   )}
                 </div>
-                <div className="space-y-2 p-3">
+                <div className="min-w-0 flex-1 space-y-2 p-3 pr-12 sm:pr-3">
                   <StatusBadge status={post.status} />
                   <p className="line-clamp-2 text-sm font-medium leading-snug">
                     {v?.title ?? dict.dashboard.untitled}
@@ -135,7 +174,11 @@ export default async function DashboardPage() {
                       minute: "2-digit",
                     })}
                   </p>
-                  {canReview && v && (
+                </div>
+                {/* Phones only (the inline variant hides itself from sm up): a full-width
+                    row under thumbnail + text, so both buttons fit. */}
+                {canReview && v && (
+                  <div className="basis-full px-3 pb-3 sm:hidden">
                     <CardQuickActions
                       variant="inline"
                       postId={post.id}
@@ -143,8 +186,8 @@ export default async function DashboardPage() {
                       hasArt={!!v.renderedArtUrl}
                       alreadyApproved={alreadyApproved}
                     />
-                  )}
-                </div>
+                  </div>
+                )}
               </Link>
             );
           })}
@@ -183,5 +226,32 @@ export default async function DashboardPage() {
         </div>
       )}
     </AppShell>
+  );
+}
+
+function FilterChip({
+  href,
+  active,
+  count,
+  children,
+}: {
+  href: string;
+  active: boolean;
+  count: number;
+  children: React.ReactNode;
+}) {
+  return (
+    <Link
+      href={href}
+      aria-current={active ? "page" : undefined}
+      className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors ${
+        active
+          ? "border-white bg-white text-black"
+          : "border-line bg-surface text-muted hover:border-white/30 hover:text-ink"
+      }`}
+    >
+      {children}
+      <span className={`text-xs tabular-nums ${active ? "text-black/60" : "text-faint"}`}>{count}</span>
+    </Link>
   );
 }

@@ -53,7 +53,7 @@ export function DeletePostButton({ postId }: { postId: string }) {
         onClick={openConfirm}
         title={dict.deletePostButton.buttonTitle}
         aria-label={dict.deletePostButton.buttonTitle}
-        className="absolute right-2 top-2 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-red-500/90 text-white shadow-soft ring-1 ring-inset ring-red-400/40 transition-colors hover:bg-red-600 active:bg-red-700"
+        className="absolute right-2 top-2 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-black/55 text-white/80 ring-1 ring-inset ring-white/15 backdrop-blur-md transition-colors hover:bg-red-600 hover:text-white hover:ring-red-400/50 active:bg-red-700"
       >
         <TrashIcon />
       </button>

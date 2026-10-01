@@ -21,11 +21,13 @@ export function LanguageSwitcher({ className = "" }: { className?: string }) {
           type="button"
           onClick={() => setLocale(option)}
           aria-pressed={locale === option}
-          className={`rounded-full px-3 py-1.5 transition-colors ${
+          className={`rounded-full px-2.5 py-1.5 transition-colors sm:px-3 ${
             locale === option ? "bg-brand-500 text-black" : "text-muted hover:text-ink"
           }`}
         >
-          {dict.common.language[option]}
+          {/* Short code on phones, full name from sm up — keeps the header from overflowing. */}
+          <span className="sm:hidden">{option.toUpperCase()}</span>
+          <span className="hidden sm:inline">{dict.common.language[option]}</span>
         </button>
       ))}
     </div>
