@@ -5,6 +5,7 @@ export const login = {
     passwordLabel: "Senha",
     submit: "Entrar",
     submitting: "Entrando…",
+    howItWorks: "Como funciona?",
   },
   en: {
     tagline: "From source to feed in minutes.",
@@ -12,5 +13,6 @@ export const login = {
     passwordLabel: "Password",
     submit: "Sign in",
     submitting: "Signing in…",
+    howItWorks: "How does it work?",
   },
 };

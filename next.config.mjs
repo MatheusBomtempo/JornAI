@@ -3,9 +3,25 @@ import { dirname } from "node:path";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
+// Basic hardening headers on every response. No CSP on purpose: Next injects
+// inline scripts and the editor loads remote images, so a strict CSP needs its
+// own careful pass (nonces) to avoid breaking the app.
+const SECURITY_HEADERS = [
+  // Nobody can embed the app in an iframe (clickjacking on the approve button).
+  { key: "X-Frame-Options", value: "DENY" },
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+  { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+  { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains" },
+];
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  poweredByHeader: false,
+  async headers() {
+    return [{ source: "/:path*", headers: SECURITY_HEADERS }];
+  },
   // Prevents Next from inferring the wrong root when there is another lockfile above.
   outputFileTracingRoot: __dirname,
   // Sharp does the final art render; unpdf (pdf.js) extracts text from PDFs;

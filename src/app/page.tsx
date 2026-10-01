@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
-import Image, { type StaticImageData } from "next/image";
+import { type StaticImageData } from "next/image";
 import Link from "next/link";
 import { Logo } from "@/components/Logo";
+import { ScreenshotFrame as Frame } from "@/components/ScreenshotFrame";
 import feedShot from "@/assets/landing/feed.png";
 import newStoryShot from "@/assets/landing/new-story.png";
 import mediaShot from "@/assets/landing/media.png";
@@ -294,6 +295,9 @@ export default function Landing() {
             <a href={GITHUB_URL} className="hover:text-ink">
               GitHub
             </a>
+            <Link href="/about" className="hover:text-ink">
+              Guide
+            </Link>
             <a href={`${GITHUB_URL}/blob/main/SPEC.md`} className="hover:text-ink">
               Spec
             </a>
@@ -315,9 +319,9 @@ function Header() {
           <Logo size="sm" />
         </Link>
         <nav className="flex items-center gap-2">
-          <a href="#how" className="btn-subtle btn-sm hidden sm:inline-flex">
+          <Link href="/about" className="btn-subtle btn-sm hidden sm:inline-flex">
             How it works
-          </a>
+          </Link>
           <a href={GITHUB_URL} className="btn-ghost btn-sm">
             <GitHubMark /> GitHub
           </a>
@@ -349,35 +353,6 @@ function SectionTitle({
       >
         {title}
       </h2>
-    </div>
-  );
-}
-
-/** Browser-window frame around a screenshot. */
-function Frame({
-  image,
-  alt,
-  priority = false,
-}: {
-  image: StaticImageData;
-  alt: string;
-  priority?: boolean;
-}) {
-  return (
-    <div className="overflow-hidden rounded-2xl border border-line bg-surface shadow-[0_30px_80px_-30px_rgba(255,255,255,0.15)]">
-      <div className="flex items-center gap-1.5 border-b border-line px-4 py-3">
-        <span className="h-2.5 w-2.5 rounded-full bg-line" />
-        <span className="h-2.5 w-2.5 rounded-full bg-line" />
-        <span className="h-2.5 w-2.5 rounded-full bg-line" />
-      </div>
-      <Image
-        src={image}
-        alt={alt}
-        priority={priority}
-        sizes="(min-width: 1024px) 560px, 100vw"
-        placeholder="blur"
-        className="h-auto w-full"
-      />
     </div>
   );
 }
