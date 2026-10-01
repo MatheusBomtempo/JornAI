@@ -191,7 +191,7 @@ export default async function AboutPage() {
 
 function Tldr({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <p className="mt-4 flex gap-3 rounded-xl border border-line bg-surface/80 px-4 py-3 text-base leading-relaxed">
+    <p className="mt-4 flex items-start gap-3 rounded-xl border border-line bg-surface/80 px-4 py-3 text-base leading-relaxed">
       <span className="mt-0.5 shrink-0 rounded-md bg-white px-1.5 py-0.5 font-mono text-[11px] font-bold text-black">
         {label}
       </span>
