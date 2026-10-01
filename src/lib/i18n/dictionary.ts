@@ -22,6 +22,7 @@ import { videoEditor } from "./dictionaries/videoEditor";
 import { onboarding } from "./dictionaries/onboarding";
 import { actionOverlay } from "./dictionaries/actionOverlay";
 import { apiClient } from "./dictionaries/apiClient";
+import { about } from "./dictionaries/about";
 
 const dictionaries = {
   pt: {
@@ -48,6 +49,7 @@ const dictionaries = {
     onboarding: onboarding.pt,
     actionOverlay: actionOverlay.pt,
     apiClient: apiClient.pt,
+    about: about.pt,
   },
   en: {
     common: common.en,
@@ -73,6 +75,7 @@ const dictionaries = {
     onboarding: onboarding.en,
     actionOverlay: actionOverlay.en,
     apiClient: apiClient.en,
+    about: about.en,
   },
 } satisfies Record<Locale, unknown>;
 

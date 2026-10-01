@@ -1,5 +1,6 @@
 import { type NextRequest } from "next/server";
 import { cleanupExpiredPosts } from "@/lib/services/retention";
+import { pruneLoginAttempts } from "@/lib/services/login-throttle";
 import { env } from "@/lib/env";
 import { ok, route, unauthorized } from "@/lib/http";
 
@@ -14,5 +15,6 @@ export const GET = route(async (req: NextRequest) => {
     throw unauthorized();
   }
   const result = await cleanupExpiredPosts();
-  return ok(result);
+  const loginAttemptsPruned = await pruneLoginAttempts();
+  return ok({ ...result, loginAttemptsPruned });
 });

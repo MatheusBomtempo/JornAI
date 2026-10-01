@@ -350,3 +350,22 @@ model AppSettings {
 
   @@map("app_settings")
 }
+
+/**
+ * Failed sign-in attempts, used to throttle brute force (see
+ * services/login-throttle.ts). Only failures are stored; a successful sign-in
+ * clears the ones for that email. Rows older than a day are pruned by the
+ * daily cron, so the table stays tiny.
+ */
+model LoginAttempt {
+  id        String   @id @default(uuid()) @db.Uuid
+  /** Lower-cased email that was tried (it may not belong to any user). */
+  email     String
+  ip        String?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([email, createdAt])
+  @@index([ip, createdAt])
+  @@index([createdAt])
+  @@map("login_attempts")
+}

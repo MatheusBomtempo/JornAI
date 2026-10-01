@@ -8,6 +8,8 @@ import { localeFromAcceptLanguage, localeFromCountry, localeFromEnv } from "./li
  * back to /login. API routes handle their own auth (requireUser).
  */
 const PUBLIC_PATHS = ["/login"];
+/** Open to everyone, with or without a session (no redirects at all). */
+const OPEN_PATHS = ["/about"];
 const ONBOARDING_PATH = "/onboarding";
 
 export async function middleware(req: NextRequest) {
@@ -15,7 +17,9 @@ export async function middleware(req: NextRequest) {
   const token = req.cookies.get(SESSION_COOKIE)?.value;
   const session = await verifySession(token);
 
-  const isPublic = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
+  // "/" is the public landing page; anyone with a session is still sent
+  // straight to the dashboard (same as the `isPublic` + session branch below).
+  const isPublic = pathname === "/" || PUBLIC_PATHS.some((p) => pathname.startsWith(p));
   const isOnboarding = pathname.startsWith(ONBOARDING_PATH);
   // `undefined` = cookie signed before this field existed (old session);
   // treated as "has a company" until the person logs in again — only `null`
@@ -24,9 +28,13 @@ export async function middleware(req: NextRequest) {
   // introduced.
   const missingCompany = session?.companyId === null;
 
+  const isOpen = OPEN_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+
   let response: NextResponse;
 
-  if (!session && !isPublic) {
+  if (isOpen) {
+    response = NextResponse.next();
+  } else if (!session && !isPublic) {
     const url = req.nextUrl.clone();
     url.pathname = "/login";
     url.searchParams.set("next", pathname);

@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { apiPost } from "@/lib/api-client";
 import { useLocale } from "@/components/LocaleProvider";
@@ -76,6 +77,12 @@ function LoginForm() {
             {loading ? dict.login.submitting : dict.login.submit}
           </button>
         </form>
+
+        <p className="mt-6 text-center text-sm">
+          <Link href="/about" className="text-muted underline-offset-4 hover:text-ink hover:underline">
+            {dict.login.howItWorks}
+          </Link>
+        </p>
       </div>
     </div>
   );

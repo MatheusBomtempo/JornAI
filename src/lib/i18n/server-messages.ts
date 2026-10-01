@@ -59,6 +59,8 @@ const API_ERRORS_PT: Record<string, string> = {
   "Invalid data": "Dados inválidos",
   "Internal server error": "Erro interno do servidor",
   "Invalid email or password.": "E-mail ou senha inválidos.",
+  "Too many sign-in attempts. Try again in a few minutes.":
+    "Muitas tentativas de login. Tente de novo em alguns minutos.",
   "Register your company before continuing.": "Cadastre sua empresa antes de continuar.",
   "You already have a company registered.": "Você já tem uma empresa cadastrada.",
   "API key not found.": "Chave não encontrada.",
