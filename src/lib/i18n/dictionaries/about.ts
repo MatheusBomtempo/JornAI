@@ -1,14 +1,21 @@
 export const about = {
   pt: {
     metaTitle: "Como funciona — JornAI",
-    metaDescription: "Guia rápido do JornAI: da fonte ao post no Instagram em 4 passos.",
-    signIn: "Entrar",
-    goToFeed: "Ir para o feed",
+    metaDescription:
+      "JornAI é open source: clone no GitHub, coloque a sua chave de API, configure a sua empresa e publique no Instagram em 4 passos.",
+    cloneCta: "Clonar no GitHub",
     kicker: "Como funciona",
+    badge: "Open source · MIT",
     title: "Da fonte ao post em 4 passos.",
-    subtitle:
-      "Um guia rápido para toda a redação. Leia o TL;DR, olhe a imagem e pronto.",
-    tldr: "TL;DR",
+    subtitle: "Um guia rápido para toda a redação.",
+    ossTitle: "É open source: rode o seu, não use o nosso.",
+    ossText:
+      "O JornAI não é um serviço para criar conta e entrar. Clone o repositório no GitHub, coloque a sua chave de API, configure a sua empresa e está valendo. O painel que roda neste endereço é só uma vitrine — não precisa abri-lo.",
+    ossSteps: [
+      { name: "Clone", text: "Copie o projeto do GitHub para a sua máquina ou servidor." },
+      { name: "Chave de API", text: "Coloque a chave do provedor de IA no .env." },
+      { name: "Sua empresa", text: "Nome, logo, @ e cores — e já pode publicar." },
+    ],
     stepLabel: "Passo",
     steps: [
       {
@@ -52,6 +59,37 @@ export const about = {
         alt: "Feed de pautas com posts em revisão",
       },
     ],
+    videoKicker: "Vídeo e Reels",
+    videoTitle: "Tem vídeo? Também sai com a cara da marca.",
+    videoLead:
+      "Suba um MP4, MOV ou WebM e o JornAI entrega um Reels 9:16 com título animado e o logo da empresa, pronto para publicar.",
+    videoFeatures: [
+      {
+        title: "Qualquer formato vira 9:16",
+        text: "Aceita MP4, MOV e WebM de até 100 MB. O resultado sai sempre em 1080×1920, a 30 quadros por segundo.",
+      },
+      {
+        title: "Vídeo deitado, sem corte",
+        text: "Um vídeo 16:9 aparece inteiro e centralizado, com um fundo desfocado em volta. Se um vídeo vertical precisar ser cortado, o editor avisa quanto da imagem fica de fora.",
+      },
+      {
+        title: "Título animado",
+        text: "O texto entra com animação logo no início, fica na tela o vídeo todo e some suavemente pouco antes do fim.",
+      },
+      {
+        title: "Três estilos de cartão",
+        text: "Clássico, Claro e Destaque. Os dois últimos usam as cores da sua marca, e o logo da empresa entra logo abaixo do texto.",
+      },
+      {
+        title: "Réguas do Reels",
+        text: "Ajuste a altura do texto. As faixas amarelas mostram o que a interface do Reels cobre, e o texto nunca passa delas.",
+      },
+      {
+        title: "Prévia fiel e histórico",
+        text: "A prévia usa um frame do meio do vídeo e as mesmas medidas do render final. Depois é o fluxo normal: revisão, aprovação e versões.",
+      },
+    ],
+    videoAlt: "Editor de vídeo com a prévia 9:16, as réguas do Reels e o controle de altura do texto",
     rulesTitle: "Três regras que nunca mudam",
     rules: [
       {
@@ -91,17 +129,29 @@ export const about = {
       },
     ],
     setupAlt: "Construtor de templates com as caixas de título e subtítulo",
-    ctaTitle: "Pronto para a primeira pauta?",
+    tabsAlt:
+      "Painel de administração com as abas Estilo da redação, Templates, Usuários, Chaves de API, Empresa, Configurações e Saldo de IA",
+    tabsCaption: "Tudo fica nas abas do Admin: estilo, templates, usuários, chaves, empresa e configurações.",
+    ctaTitle: "Pronto? Clone, coloque a sua chave e configure a sua empresa.",
+    ctaText: "Faça o seu próprio projeto. Não precisa abrir o dashboard desta página.",
   },
   en: {
     metaTitle: "How it works — JornAI",
-    metaDescription: "A quick guide to JornAI: from source to Instagram post in 4 steps.",
-    signIn: "Sign in",
-    goToFeed: "Go to the feed",
+    metaDescription:
+      "JornAI is open source: clone it from GitHub, add your API key, set up your company and publish to Instagram in 4 steps.",
+    cloneCta: "Clone on GitHub",
     kicker: "How it works",
+    badge: "Open source · MIT",
     title: "From source to post in 4 steps.",
-    subtitle: "A quick tour for the whole newsroom. Read the TL;DR, look at the picture, done.",
-    tldr: "TL;DR",
+    subtitle: "A quick tour for the whole newsroom.",
+    ossTitle: "It's open source: run your own, don't use ours.",
+    ossText:
+      "JornAI isn't a service where you sign up and log in. Clone the repository from GitHub, add your API key, set up your company and you're good to go. The dashboard running at this address is just a showcase — you don't need to open it.",
+    ossSteps: [
+      { name: "Clone", text: "Copy the project from GitHub to your machine or server." },
+      { name: "API key", text: "Put your AI provider key in the .env file." },
+      { name: "Your company", text: "Name, logo, handle and colors — then start publishing." },
+    ],
     stepLabel: "Step",
     steps: [
       {
@@ -145,6 +195,37 @@ export const about = {
         alt: "Story feed with posts in review",
       },
     ],
+    videoKicker: "Video and Reels",
+    videoTitle: "Got a video? It comes out on brand too.",
+    videoLead:
+      "Upload an MP4, MOV or WebM and JornAI hands back a 9:16 Reels video with an animated title and your company logo, ready to publish.",
+    videoFeatures: [
+      {
+        title: "Any format becomes 9:16",
+        text: "Accepts MP4, MOV and WebM up to 100 MB. The result is always 1080×1920 at 30 frames per second.",
+      },
+      {
+        title: "Landscape video, no cropping",
+        text: "A 16:9 video shows whole and centered, with a blurred background around it. If a vertical video does need cropping, the editor tells you how much of the image is cut off.",
+      },
+      {
+        title: "Animated title",
+        text: "The text animates in near the start, stays on screen for the whole video and fades out gently just before the end.",
+      },
+      {
+        title: "Three card styles",
+        text: "Classic, Light and Bold. The last two use your brand colors, and the company logo sits right below the text.",
+      },
+      {
+        title: "Reels guides",
+        text: "Adjust the text height. The yellow bands show what the Reels interface covers, and the text never crosses them.",
+      },
+      {
+        title: "Faithful preview and history",
+        text: "The preview uses a frame from the middle of the video and the same measurements as the final render. After that it's the usual flow: review, approval and versions.",
+      },
+    ],
+    videoAlt: "Video editor with the 9:16 preview, the Reels guides and the text height control",
     rulesTitle: "Three rules that never change",
     rules: [
       {
@@ -184,6 +265,10 @@ export const about = {
       },
     ],
     setupAlt: "Template builder with the title and subtitle boxes",
-    ctaTitle: "Ready for your first story?",
+    tabsAlt:
+      "Administration panel with the Newsroom style, Templates, Users, API keys, Company, Settings and AI balance tabs",
+    tabsCaption: "Everything lives in the Admin tabs: style, templates, users, keys, company and settings.",
+    ctaTitle: "Ready? Clone it, add your key and set up your company.",
+    ctaText: "Make your own project. You don't need to open the dashboard on this page.",
   },
 };

@@ -1,20 +1,26 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getServerDictionary } from "@/lib/i18n/server";
-import { getSession } from "@/lib/auth";
+import { GITHUB_CLONE_CMD, GITHUB_URL } from "@/lib/links";
 import { Logo } from "@/components/Logo";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { ScreenshotFrame } from "@/components/ScreenshotFrame";
+import { BlobBackground } from "@/components/BlobBackground";
+import { GitHubMark } from "@/components/GitHubMark";
 import newStoryShot from "@/assets/landing/new-story.png";
 import mediaShot from "@/assets/landing/media.png";
 import reviewShot from "@/assets/landing/review.png";
 import feedShot from "@/assets/landing/feed.png";
 import templateShot from "@/assets/landing/template-builder.png";
+import adminTabsShot from "@/assets/landing/admin-tabs.png";
+import videoShot from "@/assets/landing/video-editor.png";
 
 /**
- * /about — plain-language guide to how the system works, for anyone in the
- * newsroom (logged in or not). Follows the interface language like the rest
- * of the app.
+ * /about — plain-language guide to how the system works. Follows the
+ * interface language like the rest of the app. JornAI is open source, so the
+ * page pushes people to clone the repo and run their own instance instead of
+ * opening the dashboard that happens to be hosted here: every call to action
+ * points to GitHub, none to the sign-in.
  */
 const STEP_SHOTS = [newStoryShot, mediaShot, reviewShot, feedShot];
 
@@ -24,14 +30,12 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function AboutPage() {
-  const [{ dict }, session] = await Promise.all([getServerDictionary(), getSession()]);
+  const { dict } = await getServerDictionary();
   const t = dict.about;
-  const cta = session
-    ? { href: "/dashboard", label: t.goToFeed }
-    : { href: "/login", label: t.signIn };
 
   return (
     <div className="relative overflow-hidden">
+      <BlobBackground />
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-x-0 top-0 h-[560px] opacity-60"
@@ -51,9 +55,9 @@ export default async function AboutPage() {
           </Link>
           <div className="flex items-center gap-2">
             <LanguageSwitcher />
-            <Link href={cta.href} className="btn-primary btn-sm">
-              {cta.label}
-            </Link>
+            <a href={GITHUB_URL} className="btn-primary btn-sm">
+              <GitHubMark /> {t.cloneCta}
+            </a>
           </div>
         </div>
       </header>
@@ -61,7 +65,15 @@ export default async function AboutPage() {
       <main className="relative">
         {/* Hero */}
         <section className="mx-auto max-w-4xl px-4 pb-6 pt-16 text-center md:pt-24">
-          <p className="font-mono text-xs uppercase tracking-[0.18em] text-faint">{t.kicker}</p>
+          <a
+            href={GITHUB_URL}
+            className="inline-flex items-center gap-2 rounded-full border border-line bg-surface/70 px-3.5 py-1.5 text-xs font-medium text-muted backdrop-blur transition-colors hover:border-white/30 hover:text-ink"
+          >
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+            {t.badge}
+            <span aria-hidden="true">→</span>
+          </a>
+          <p className="mt-6 font-mono text-xs uppercase tracking-[0.18em] text-faint">{t.kicker}</p>
           <h1 className="mt-4 text-balance text-4xl font-semibold leading-[1.08] tracking-tight md:text-6xl">
             {t.title}
           </h1>
@@ -69,13 +81,15 @@ export default async function AboutPage() {
             {t.subtitle}
           </p>
 
+          <CloneCard title={t.ossTitle} text={t.ossText} steps={t.ossSteps} cta={t.cloneCta} />
+
           {/* Step index */}
           <ol className="mx-auto mt-10 grid max-w-3xl grid-cols-2 gap-2 text-left sm:grid-cols-4">
             {t.steps.map((s, i) => (
               <li key={s.title}>
                 <a
                   href={`#step-${i + 1}`}
-                  className="block h-full rounded-xl border border-lineSoft bg-surface/70 px-3 py-2.5 text-sm transition-colors hover:border-white/30"
+                  className="block h-full rounded-xl border border-lineSoft bg-surface/70 px-3 py-2.5 text-sm backdrop-blur transition-colors hover:border-white/30"
                 >
                   <span className="font-mono text-xs text-faint">0{i + 1}</span>
                   <span className="mt-0.5 block font-medium leading-snug">{s.title}</span>
@@ -101,7 +115,7 @@ export default async function AboutPage() {
                   <h2 className="mt-2 text-3xl font-semibold tracking-tight md:text-4xl">
                     {s.title}
                   </h2>
-                  <Tldr label={t.tldr}>{s.tldr}</Tldr>
+                  <Lead>{s.tldr}</Lead>
                   <ul className="mt-5 space-y-2.5 text-sm leading-relaxed text-muted">
                     {s.points.map((p) => (
                       <li key={p} className="flex gap-2.5">
@@ -115,6 +129,32 @@ export default async function AboutPage() {
                   <ScreenshotFrame image={STEP_SHOTS[i]} alt={s.alt} priority={i === 0} />
                 </div>
               </article>
+            ))}
+          </div>
+        </section>
+
+        {/* Video */}
+        <section id="video" className="mx-auto max-w-6xl scroll-mt-24 px-4 py-16">
+          <div className="text-center">
+            <p className="font-mono text-xs uppercase tracking-[0.18em] text-faint">
+              {t.videoKicker}
+            </p>
+            <h2 className="mx-auto mt-3 max-w-3xl text-balance text-3xl font-semibold tracking-tight md:text-5xl">
+              {t.videoTitle}
+            </h2>
+            <p className="mx-auto mt-4 max-w-2xl text-balance text-base leading-relaxed text-muted md:text-lg">
+              {t.videoLead}
+            </p>
+          </div>
+          <div className="mx-auto mt-12 max-w-3xl">
+            <ScreenshotFrame image={videoShot} alt={t.videoAlt} />
+          </div>
+          <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {t.videoFeatures.map((f) => (
+              <div key={f.title} className="card p-6">
+                <h3 className="text-lg font-semibold">{f.title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-muted">{f.text}</p>
+              </div>
             ))}
           </div>
         </section>
@@ -154,7 +194,7 @@ export default async function AboutPage() {
           <div className="grid items-center gap-10 md:grid-cols-2 md:gap-14">
             <div>
               <h2 className="text-3xl font-semibold tracking-tight md:text-4xl">{t.setupTitle}</h2>
-              <Tldr label={t.tldr}>{t.setupTldr}</Tldr>
+              <Lead>{t.setupTldr}</Lead>
               <ol className="mt-6 space-y-4">
                 {t.setup.map((s, i) => (
                   <li key={s.name} className="flex gap-4">
@@ -169,19 +209,29 @@ export default async function AboutPage() {
                 ))}
               </ol>
             </div>
-            <ScreenshotFrame image={templateShot} alt={t.setupAlt} />
+            <div className="space-y-5">
+              <figure>
+                <ScreenshotFrame image={adminTabsShot} alt={t.tabsAlt} />
+                <figcaption className="mt-3 text-center text-sm text-faint">
+                  {t.tabsCaption}
+                </figcaption>
+              </figure>
+              <ScreenshotFrame image={templateShot} alt={t.setupAlt} />
+            </div>
           </div>
         </section>
 
         {/* CTA */}
         <section className="mx-auto max-w-4xl px-4 pb-24 pt-8 text-center">
-          <div className="rounded-3xl border border-line bg-surface/80 px-6 py-12 shadow-soft">
+          <div className="rounded-3xl border border-line bg-surface/80 px-6 py-12 shadow-soft backdrop-blur">
             <h2 className="text-balance text-3xl font-semibold tracking-tight md:text-4xl">
               {t.ctaTitle}
             </h2>
-            <Link href={cta.href} className="btn-primary mt-7 h-12 px-6 text-base">
-              {cta.label}
-            </Link>
+            <p className="mx-auto mt-4 max-w-xl text-muted">{t.ctaText}</p>
+            <CloneCommand />
+            <a href={GITHUB_URL} className="btn-primary mt-7 h-12 px-6 text-base">
+              <GitHubMark /> {t.cloneCta}
+            </a>
           </div>
         </section>
       </main>
@@ -189,13 +239,49 @@ export default async function AboutPage() {
   );
 }
 
-function Tldr({ label, children }: { label: string; children: React.ReactNode }) {
+/** Lead sentence under a heading — just the text, no label. */
+function Lead({ children }: { children: React.ReactNode }) {
+  return <p className="mt-4 text-base leading-relaxed text-ink md:text-lg">{children}</p>;
+}
+
+function CloneCommand() {
   return (
-    <p className="mt-4 flex items-start gap-3 rounded-xl border border-line bg-surface/80 px-4 py-3 text-base leading-relaxed">
-      <span className="mt-0.5 shrink-0 rounded-md bg-white px-1.5 py-0.5 font-mono text-[11px] font-bold text-black">
-        {label}
-      </span>
-      <span>{children}</span>
-    </p>
+    <pre className="mx-auto mt-6 max-w-full overflow-x-auto rounded-xl border border-line bg-bg/80 px-4 py-3 text-left font-mono text-xs text-ink sm:w-fit sm:text-sm">
+      <code className="select-all">{GITHUB_CLONE_CMD}</code>
+    </pre>
+  );
+}
+
+function CloneCard({
+  title,
+  text,
+  steps,
+  cta,
+}: {
+  title: string;
+  text: string;
+  steps: { name: string; text: string }[];
+  cta: string;
+}) {
+  return (
+    <div className="mx-auto mt-10 max-w-3xl rounded-3xl border border-line bg-surface/80 p-6 text-left shadow-soft backdrop-blur md:p-8">
+      <h2 className="text-balance text-xl font-semibold tracking-tight md:text-2xl">{title}</h2>
+      <p className="mt-3 text-sm leading-relaxed text-muted md:text-base">{text}</p>
+      <ol className="mt-6 grid gap-3 sm:grid-cols-3">
+        {steps.map((s, i) => (
+          <li key={s.name} className="rounded-xl border border-lineSoft bg-bg/60 p-4">
+            <span className="font-mono text-xs text-faint">0{i + 1}</span>
+            <p className="mt-1 font-semibold">{s.name}</p>
+            <p className="mt-1 text-sm leading-relaxed text-muted">{s.text}</p>
+          </li>
+        ))}
+      </ol>
+      <CloneCommand />
+      <div className="mt-5 text-center">
+        <a href={GITHUB_URL} className="btn-primary h-11 px-5">
+          <GitHubMark /> {cta}
+        </a>
+      </div>
+    </div>
   );
 }

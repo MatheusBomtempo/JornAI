@@ -50,9 +50,16 @@ const config: Config = {
           from: { opacity: "0", transform: "translateY(4px)" },
           to: { opacity: "1", transform: "translateY(0)" },
         },
+        blob: {
+          "0%, 100%": { transform: "translate3d(0, 0, 0) scale(1)" },
+          "33%": { transform: "translate3d(60px, -50px, 0) scale(1.12)" },
+          "66%": { transform: "translate3d(-40px, 40px, 0) scale(0.92)" },
+        },
       },
       animation: {
         "fade-in": "fade-in .18s ease-out",
+        blob: "blob 18s ease-in-out infinite",
+        "blob-slow": "blob 28s ease-in-out infinite reverse",
       },
     },
   },
