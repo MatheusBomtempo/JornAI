@@ -217,7 +217,7 @@ GET/POST/DELETE /api-keys              → admin only
 - Three source types: photo, ready-made text, link (which needs scraping before going to the AI).
 - Three roles: admin, manager, staff, with a separation between who creates and who approves.
 
-## Suggested first steps for Claude Code
+## Suggested first steps
 
 1. Initialize the Next.js + TypeScript + Prisma (or Drizzle) + PostgreSQL project.
 2. Run the migrations with the schema above.

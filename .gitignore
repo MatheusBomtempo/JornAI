@@ -57,3 +57,7 @@ next-env.d.ts
 
 .vercel
 .env*
+
+# local assistant/editor config (not part of the open-source project)
+CLAUDE.md
+.claude/
