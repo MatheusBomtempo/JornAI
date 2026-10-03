@@ -143,40 +143,64 @@ const API_ERRORS_PT: Record<string, string> = {
 };
 
 /**
- * Names of the factual-fidelity rules (lib/language/{pt,en}/validate.ts),
- * shown inside the "AI kept violating…" error.
+ * The factual-fidelity rules (lib/language/{pt,en}/validate.ts) explained in
+ * plain words — whoever reads this error is a reporter, not a developer, so
+ * each item says what the AI wrote that is not in their text.
  */
 const RULES_PT: Record<string, string> = {
-  'address formula "na altura de..."': 'fórmula de endereço "na altura de..."',
-  'address formula "at the height of..."': 'fórmula de endereço "na altura de..."',
-  'absence phrase ("não foi informado/divulgado")': 'frase de ausência ("não foi informado/divulgado")',
-  'absence phrase ("não há informações")': 'frase de ausência ("não há informações")',
-  'absence phrase ("was not disclosed/reported")': 'frase de ausência ("não foi divulgado/informado")',
-  'absence phrase ("no information is available")': 'frase de ausência ("não há informações")',
-  'person named ("identificado como...")': 'pessoa nomeada ("identificado como...")',
-  'person named ("identified as...")': 'pessoa nomeada ("identificado como...")',
-  "administrative report field turned into a sentence": "campo administrativo do boletim virou frase",
-  "invented image credit": "crédito de imagem inventado",
-  "invented investigation": "investigação inventada",
-  "invented road interdiction": "interdição de via inventada",
-  "invented road blockage": "bloqueio de via inventado",
-  "invented road closure": "interdição de via inventada",
-  "invented traffic detour": "desvio de trânsito inventado",
-  "invented death": "morte inventada",
-  'invented closing line "apurar as circunstâncias"': 'frase final inventada "apurar as circunstâncias"',
-  'invented closing line about "the circumstances"': 'frase final inventada sobre "as circunstâncias"',
-  "invented forensic examination": "perícia inventada",
+  'address formula "na altura de..."': 'usou a expressão "na altura de..." para indicar o local',
+  'address formula "at the height of..."': 'usou a expressão "na altura de..." para indicar o local',
+  'absence phrase ("não foi informado/divulgado")': 'escreveu que alguma informação "não foi divulgada", o que não acrescenta nada à notícia',
+  'absence phrase ("não há informações")': 'escreveu que "não há informações" sobre algo, o que não acrescenta nada à notícia',
+  'absence phrase ("was not disclosed/reported")': 'escreveu que alguma informação "não foi divulgada", o que não acrescenta nada à notícia',
+  'absence phrase ("no information is available")': 'escreveu que "não há informações" sobre algo, o que não acrescenta nada à notícia',
+  'person named ("identificado como...")': 'colocou o nome de uma pessoa envolvida ("identificado como..."), o que não deve ir para o post',
+  'person named ("identified as...")': 'colocou o nome de uma pessoa envolvida ("identificado como..."), o que não deve ir para o post',
+  "administrative report field turned into a sentence": "transformou um campo técnico do boletim de ocorrência em frase da notícia",
+  "invented image credit": "inventou um crédito de foto que você não informou",
+  "invented investigation": "disse que o caso está sendo investigado, mas o seu texto não fala disso",
+  "invented road interdiction": "disse que a via foi interditada, mas o seu texto não fala disso",
+  "invented road blockage": "disse que a via foi bloqueada, mas o seu texto não fala disso",
+  "invented road closure": "disse que a via foi interditada, mas o seu texto não fala disso",
+  "invented traffic detour": "falou em desvio no trânsito, mas o seu texto não fala disso",
+  "invented death": "falou em morte, mas o seu texto não fala disso",
+  'invented closing line "apurar as circunstâncias"': 'terminou com "a polícia vai apurar as circunstâncias", que não está no seu texto',
+  'invented closing line about "the circumstances"': 'terminou com "a polícia vai apurar as circunstâncias", que não está no seu texto',
+  "invented forensic examination": "falou em perícia, mas o seu texto não fala disso",
 };
 
-function translateRules(list: string): string {
-  return list
-    .split("; ")
-    .map((rule) => {
-      const weekday = rule.match(/^weekday "(.+)" not supported by the source$/);
-      if (weekday) return `dia da semana "${weekday[1]}" que não está na fonte`;
-      return RULES_PT[rule] ?? rule;
-    })
-    .join("; ");
+function explainRule(rule: string): string {
+  const weekday = rule.match(/^weekday "(.+)" not supported by the source$/);
+  if (weekday) {
+    return `escreveu "${weekday[1]}", mas esse dia da semana não aparece no seu texto`;
+  }
+  return RULES_PT[rule] ?? rule;
+}
+
+const FIDELITY_RE =
+  /^(?:(AI pipeline failed|AI rewrite failed): )?The AI kept violating factual-fidelity rules even after correction \((.+)\)\. Nothing was saved — try generating again or adjust the source\.$/s;
+
+/**
+ * The AI wrote something that is not in the reporter's text, twice in a row.
+ * The technical wrapper ("AI pipeline failed: …") is dropped: the reporter
+ * only needs what happened, that nothing was lost, and what to do next.
+ */
+function friendlyFidelityError(rules: string, isRewrite: boolean): string {
+  const reasons = rules.split("; ").map(explainRule);
+  const what =
+    reasons.length === 1
+      ? `A IA ${reasons[0]}.`
+      : `A IA escreveu coisas que não estão no seu texto:\n${reasons.map((r) => `• ${r[0].toUpperCase()}${r.slice(1)};`).join("\n")}`;
+  return (
+    `${what}\n\n` +
+    (isRewrite
+      ? "Para não publicar uma informação errada, o texto novo foi descartado — o post continua como estava.\n\n"
+      : "Para não publicar uma informação errada, esse texto foi descartado.\n\n") +
+    (isRewrite
+      ? "O que fazer: clique em “Tentar de novo” ou, se preferir, edite o texto à mão."
+      : "O que fazer: clique em “Tentar de novo”. Se essa informação for verdadeira, " +
+        "escreva ela no seu texto antes de enviar — assim a IA pode usá-la.")
+  );
 }
 const API_ERROR_PREFIXES_PT: [string, string][] = [
   ["Could not download the photo from Pexels", "Não foi possível baixar a foto do Pexels"],
@@ -202,11 +226,6 @@ const API_ERROR_PREFIXES_PT: [string, string][] = [
 
 const API_ERROR_PATTERNS_PT: [RegExp, string | ((...groups: string[]) => string)][] = [
   [/^Type (.+) to confirm\.$/, "Digite $1 pra confirmar."],
-  [
-    /^The AI kept violating factual-fidelity rules even after correction \((.+)\)\. Nothing was saved — try generating again or adjust the source\.$/s,
-    (rules) =>
-      `A IA insistiu em violar regras de fidelidade factual mesmo após correção (${translateRules(rules)}). Nada foi salvo — tente gerar de novo ou ajuste a fonte.`,
-  ],
   // Errors of one AI provider: "<provider>: <reason>".
   [/^([\w:./-]+): timed out \(the model took too long to answer\)\.$/, "$1: tempo esgotado (o modelo demorou demais para responder)."],
   [/^([\w:./-]+): connection failed \((.*)\)\.$/s, "$1: falha de conexão ($2)."],
@@ -225,6 +244,8 @@ export function translateApiMessage(message: string, locale: Locale): string {
   if (locale !== "pt") return message;
   const exact = API_ERRORS_PT[message];
   if (exact) return exact;
+  const fidelity = message.match(FIDELITY_RE);
+  if (fidelity) return friendlyFidelityError(fidelity[2], fidelity[1] === "AI rewrite failed");
   for (const [prefix, translated] of API_ERROR_PREFIXES_PT) {
     if (message.startsWith(prefix)) {
       const rest = message.slice(prefix.length);
