@@ -17,6 +17,7 @@ import { useActionOverlay, type RunContext } from "./ActionOverlay";
 import { DEFAULT_SLIDE_TRANSFORM, type CarouselSlide } from "@/lib/carousel";
 import {
   POST_STATUS,
+  PUBLICATION_STATUS,
   PEER_APPROVALS_NEEDED,
   CAROUSEL_MAX,
   formatCredit,
@@ -107,6 +108,8 @@ interface Version {
     reviewer: { id: string; name: string };
     createdAt: string;
   }[];
+  /** Story shares of this version, newest first (see "add to stories" on review). */
+  storyPublications: { status: string; errorMessage: string | null }[];
 }
 
 interface PostDetail {
@@ -186,6 +189,8 @@ export function PostWorkspace({ user, post, templates, company }: Props) {
   const [panel, setPanel] = useState<Panel>(null);
   const [guidance, setGuidance] = useState("");
   const [reason, setReason] = useState("");
+  // Always starts unticked: posting to the story is an explicit choice each time.
+  const [shareToStory, setShareToStory] = useState(false);
   const [draft, setDraft] = useState({
     title: current?.title ?? "",
     subtitle: current?.subtitle ?? "",
@@ -569,7 +574,7 @@ export function PostWorkspace({ user, post, templates, company }: Props) {
     run(
       isPeerReviewer ? dict.postWorkspace.busy.registeringApproval : dict.postWorkspace.busy.publishing,
       isPeerReviewer ? dict.postWorkspace.done.approvalRegistered : dict.postWorkspace.done.published,
-      () => apiPost(`/api/posts/${post.id}/versions/${current.id}/approve`),
+      () => apiPost(`/api/posts/${post.id}/versions/${current.id}/approve`, { shareToStory }),
     );
 
   const reject = () =>
@@ -597,6 +602,27 @@ export function PostWorkspace({ user, post, templates, company }: Props) {
 
   const approvals = current?.decisions.filter((d) => d.decision === "approved") ?? [];
   const myApproval = approvals.find((d) => d.reviewer.id === user.id);
+  const storyPublication = current?.storyPublications[0];
+  // Checkbox under the approve button, for whoever can still approve this version.
+  const storyCheckbox = (
+    <label className="mt-3 flex cursor-pointer items-start gap-3">
+      <input
+        type="checkbox"
+        checked={shareToStory}
+        className="mt-1 h-5 w-5 shrink-0 accent-white"
+        disabled={!!busy || !mediaReady}
+        onChange={(e) => setShareToStory(e.target.checked)}
+      />
+      <span>
+        <span className="block text-sm font-medium">{dict.postWorkspace.review.shareToStoryLabel}</span>
+        <span className="hint my-0 block">
+          {isPeerReviewer
+            ? dict.postWorkspace.review.shareToStoryPeerHint
+            : dict.postWorkspace.review.shareToStoryHint}
+        </span>
+      </span>
+    </label>
+  );
 
   return (
     <div className="space-y-5">
@@ -985,6 +1011,7 @@ export function PostWorkspace({ user, post, templates, company }: Props) {
                     {busy ? <BusyLabel label={busy} seconds={elapsed} /> : dict.postWorkspace.review.approveAndPublish}
                   </button>
                 )}
+                {isManagerOrAdmin && storyCheckbox}
 
                 {isPeerReviewer && (
                   <>
@@ -1007,6 +1034,7 @@ export function PostWorkspace({ user, post, templates, company }: Props) {
                         dict.postWorkspace.review.approveThisStory
                       )}
                     </button>
+                    {!myApproval && storyCheckbox}
                   </>
                 )}
 
@@ -1101,6 +1129,15 @@ export function PostWorkspace({ user, post, templates, company }: Props) {
                     ? dict.postWorkspace.review.publishedMessage
                     : dict.postWorkspace.review.rejectedMessage}
                 </p>
+                {post.status === POST_STATUS.PUBLISHED && storyPublication && (
+                  storyPublication.status === PUBLICATION_STATUS.PUBLISHED ? (
+                    <p className="hint mb-0">{dict.postWorkspace.review.storyPublished}</p>
+                  ) : storyPublication.status === PUBLICATION_STATUS.FAILED ? (
+                    <p className="alert-error mt-3">
+                      {dict.postWorkspace.review.storyFailed} {storyPublication.errorMessage}
+                    </p>
+                  ) : null
+                )}
               </section>
             )}
 

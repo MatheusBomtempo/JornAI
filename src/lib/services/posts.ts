@@ -9,12 +9,19 @@ import {
   publishToInstagram,
   publishVideoToInstagram,
   publishCarouselToInstagram,
+  publishStoryToInstagram,
 } from "../instagram";
 import { canEditPost, canReviewPost, can } from "../rbac";
 import { PURGE_SELECT, purgePostsWithMedia } from "./retention";
 import { getAppSettings } from "./settings";
 import { ApiError, badRequest, conflict, forbidden, notFound } from "../http";
-import { POST_STATUS, PUBLICATION_STATUS, PEER_APPROVALS_NEEDED, type Credit } from "../domain";
+import {
+  POST_STATUS,
+  PUBLICATION_STATUS,
+  PUBLICATION_KIND,
+  PEER_APPROVALS_NEEDED,
+  type Credit,
+} from "../domain";
 import type { z } from "zod";
 import type {
   createPostSchema,
@@ -665,9 +672,14 @@ export async function editVersionManually(
  * Actually publishes to Instagram (photo or video) and reflects the result on
  * the post — used both by the manual approval (approveAndPublish) and by the
  * auto-publish when the review flow is turned off (see
- * AppSettings.reviewRequired).
+ * AppSettings.reviewRequired). `shareToStory` also sends the art/video to the
+ * story, after the feed post is out (see shareVersionToStory).
  */
-async function publishVersion(postId: string, version: PostVersion) {
+async function publishVersion(
+  postId: string,
+  version: PostVersion,
+  opts: { shareToStory?: boolean } = {},
+) {
   const isVideo = !!version.renderedVideoUrl;
   if (!version.renderedArtUrl && !version.renderedVideoUrl) {
     throw badRequest("The art/video has not been rendered for this version yet.");
@@ -720,6 +732,45 @@ async function publishVersion(postId: string, version: PostVersion) {
     });
     throw new ApiError(502, `Failed to publish: ${(err as Error).message}`);
   }
+
+  if (opts.shareToStory) await shareVersionToStory(version);
+}
+
+/**
+ * The story is an extra: the feed post is already out at this point, so a
+ * failure here does not roll anything back or fail the request — it is only
+ * recorded as a failed 'story' publication, which the review screen shows.
+ * Carousel: only the cover (the art with the text) goes to the story.
+ */
+async function shareVersionToStory(version: PostVersion): Promise<void> {
+  const publication = await prisma.publication.create({
+    data: {
+      postVersionId: version.id,
+      kind: PUBLICATION_KIND.STORY,
+      status: PUBLICATION_STATUS.PENDING,
+    },
+  });
+  try {
+    const result = await publishStoryToInstagram(
+      version.renderedVideoUrl
+        ? { videoUrl: version.renderedVideoUrl }
+        : { imageUrl: version.renderedArtUrl! },
+    );
+    await prisma.publication.update({
+      where: { id: publication.id },
+      data: {
+        status: PUBLICATION_STATUS.PUBLISHED,
+        instagramMediaId: result.mediaId,
+        instagramPostUrl: result.permalink ?? null,
+        publishedAt: new Date(),
+      },
+    });
+  } catch (err) {
+    await prisma.publication.update({
+      where: { id: publication.id },
+      data: { status: PUBLICATION_STATUS.FAILED, errorMessage: (err as Error).message },
+    });
+  }
 }
 
 // ── 5) Approve → publish to Instagram ────────────────────────
@@ -728,12 +779,14 @@ async function publishVersion(postId: string, version: PostVersion) {
  * away. Staff cannot approve their own story — only a peer's (peer review) —
  * and alone it does not publish: the vote is recorded and only when
  * PEER_APPROVALS_NEEDED distinct peers have approved this version does the
- * publication actually fire.
+ * publication actually fire. `shareToStory` comes from whoever gives the
+ * approval that actually publishes (the earlier peer votes do not carry it).
  */
 export async function approveAndPublish(
   user: CompanyUser,
   postId: string,
   versionId: string,
+  opts: { shareToStory?: boolean } = {},
 ) {
   const post = await prisma.post.findUnique({ where: { id: postId } });
   if (!post) throw notFound("Post not found.");
@@ -771,7 +824,7 @@ export async function approveAndPublish(
     });
   }
 
-  await publishVersion(postId, version);
+  await publishVersion(postId, version, opts);
   return getPostDetail(postId);
 }
 

@@ -306,6 +306,8 @@ model ReviewDecision {
 model Publication {
   id               String    @id @default(uuid()) @db.Uuid
   postVersionId    String    @map("post_version_id") @db.Uuid
+  /** 'feed' (the post itself) | 'story' (optional extra share, ticked on the review screen). */
+  kind             String    @default("feed")
   instagramMediaId String?   @map("instagram_media_id")
   instagramPostUrl String?   @map("instagram_post_url")
   status           String // 'pending' | 'container_created' | 'published' | 'failed'

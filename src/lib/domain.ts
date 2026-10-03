@@ -115,6 +115,11 @@ export const PUBLICATION_STATUS = {
 export type PublicationStatus =
   (typeof PUBLICATION_STATUS)[keyof typeof PUBLICATION_STATUS];
 
+export const PUBLICATION_KIND = {
+  FEED: "feed",
+  STORY: "story",
+} as const;
+
 /**
  * Allowed status transitions. Basis for validating state changes and for
  * eventual UI checks.

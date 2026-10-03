@@ -251,6 +251,37 @@ export async function publishVideoToInstagram(
   return { creationId, mediaId, permalink };
 }
 
+// ── Story ────────────────────────────────────────────────────
+/**
+ * Story publishing: same container + publish flow, with media_type=STORIES.
+ * Stories take no caption. The 4:5/1:1 art is not 9:16 — Instagram fits it on
+ * a background by itself, so the feed art goes as is.
+ */
+export async function publishStoryToInstagram(
+  media: { imageUrl: string } | { videoUrl: string },
+): Promise<PublishResult> {
+  const { userId, token } = assertConfigured();
+  const isVideo = "videoUrl" in media;
+  const res = await fetch(`${baseUrl()}/${userId}/media`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      media_type: "STORIES",
+      ...(isVideo ? { video_url: media.videoUrl } : { image_url: media.imageUrl }),
+      access_token: token,
+    }),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.id) {
+    throw new Error(igError("create the story container", data));
+  }
+  const creationId = data.id as string;
+  await waitForContainerReady(creationId, token, isVideo ? "video" : "image");
+  const mediaId = await publishMediaContainer(creationId);
+  const permalink = await fetchPermalink(mediaId);
+  return { creationId, mediaId, permalink };
+}
+
 function igError(action: string, data: unknown): string {
   const err = (data as { error?: { message?: string } })?.error;
   return `Error trying to ${action} on Instagram: ${err?.message ?? JSON.stringify(data)}`;

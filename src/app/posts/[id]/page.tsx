@@ -5,7 +5,7 @@ import { prisma } from "@/lib/db";
 import { AppShell } from "@/components/AppShell";
 import { PostWorkspace } from "@/components/PostWorkspace";
 import type { EditorTemplate } from "@/components/ArtEditor";
-import { sortTemplatesByFormat, type Credit } from "@/lib/domain";
+import { sortTemplatesByFormat, PUBLICATION_KIND, type Credit } from "@/lib/domain";
 import type { CarouselSlide } from "@/lib/carousel";
 
 export const dynamic = "force-dynamic";
@@ -92,6 +92,9 @@ export default async function PostPage({
         reviewer: { id: d.reviewer.id, name: d.reviewer.name },
         createdAt: d.createdAt.toISOString(),
       })),
+      storyPublications: v.publications
+        .filter((p) => p.kind === PUBLICATION_KIND.STORY)
+        .map((p) => ({ status: p.status, errorMessage: p.errorMessage })),
     })),
   };
 

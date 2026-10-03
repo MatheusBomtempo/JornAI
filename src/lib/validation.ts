@@ -134,6 +134,11 @@ export const editVersionSchema = z
     message: "Provide at least one field to edit.",
   });
 
+export const approveSchema = z.object({
+  /** Also share the art/video to the Instagram story once the post goes out. */
+  shareToStory: z.boolean().optional().default(false),
+});
+
 export const rejectSchema = z.object({
   reason: z.string().min(3, "Informe o motivo da recusa."),
 });
