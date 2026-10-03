@@ -15,14 +15,18 @@ export const PURGE_SELECT = {
   id: true,
   photos: { select: { storageUrl: true } },
   videos: { select: { storageUrl: true, previewFrameUrl: true } },
-  versions: { select: { renderedArtUrl: true, renderedVideoUrl: true } },
+  versions: { select: { renderedArtUrl: true, renderedVideoUrl: true, renderedSlideUrls: true } },
 } as const;
 
 type PurgeCandidate = {
   id: string;
   photos: { storageUrl: string }[];
   videos: { storageUrl: string; previewFrameUrl: string | null }[];
-  versions: { renderedArtUrl: string | null; renderedVideoUrl: string | null }[];
+  versions: {
+    renderedArtUrl: string | null;
+    renderedVideoUrl: string | null;
+    renderedSlideUrls: string[];
+  }[];
 };
 
 /**
@@ -46,6 +50,7 @@ export async function purgePostsWithMedia(posts: PurgeCandidate[]): Promise<void
     for (const version of post.versions) {
       if (version.renderedArtUrl) urls.add(version.renderedArtUrl);
       if (version.renderedVideoUrl) urls.add(version.renderedVideoUrl);
+      for (const url of version.renderedSlideUrls) urls.add(url);
     }
   }
 

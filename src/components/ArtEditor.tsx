@@ -1,12 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { apiPost } from "@/lib/api-client";
 import { type TextTransform } from "@/lib/text-case";
 import { textSlotSchema, type TextSlot } from "@/lib/render/slots";
 import { layoutText, type Font, type Weight } from "@/lib/render/text-svg";
 import { useLocale } from "./LocaleProvider";
 import { useActionOverlay } from "./ActionOverlay";
+import type { CarouselSlide } from "@/lib/carousel";
 
 interface Slot {
   x: number;
@@ -174,6 +175,13 @@ interface Props {
     subtitleOffset?: Offset | null;
   };
   onSaved?: () => void;
+  /**
+   * Carousel photos 2..N (the cover is this editor's photo). Sent with the
+   * save; undefined/empty = single-image post.
+   */
+  carouselSlides?: CarouselSlide[];
+  /** Carousel strip, rendered under the editor with the active template's size. */
+  renderCarousel?: (canvas: { width: number; height: number }) => ReactNode;
 }
 
 type Transform = { offsetX: number; offsetY: number; scale: number };
@@ -182,7 +190,15 @@ const ZERO_OFFSET: Offset = { offsetX: 0, offsetY: 0 };
 export const TITLE_MAX = 69;
 export const SUBTITLE_MAX = 149;
 
-export function ArtEditor({ postId, photos, templates, initial, onSaved }: Props) {
+export function ArtEditor({
+  postId,
+  photos,
+  templates,
+  initial,
+  onSaved,
+  carouselSlides,
+  renderCarousel,
+}: Props) {
   const { dict } = useLocale();
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasEl = useRef<HTMLCanvasElement>(null);
@@ -498,14 +514,16 @@ export function ArtEditor({ postId, photos, templates, initial, onSaved }: Props
     setTextMoved(hasOffset(titleOffsetRef.current) || hasOffset(subtitleOffsetRef.current));
   }
 
+  const isCarousel = (carouselSlides?.length ?? 0) > 0;
+
   async function save() {
     if (!template || !photo) return;
     setSaving(true);
     // Loading/error/success go to the modal (ActionOverlay) — it survives this
     // editor's unmount when the post moves on to review.
     const result = await run({
-      title: dict.artEditor.savingButton,
-      success: dict.artEditor.doneMessage,
+      title: isCarousel ? dict.carousel.savingButton : dict.artEditor.savingButton,
+      success: isCarousel ? dict.carousel.doneMessage : dict.artEditor.doneMessage,
       fn: () =>
         apiPost(`/api/posts/${postId}/art`, {
           selectedPhotoId: photo.id,
@@ -515,6 +533,7 @@ export function ArtEditor({ postId, photos, templates, initial, onSaved }: Props
           subtitle: subtitle.slice(0, SUBTITLE_MAX),
           titleOffset: readTextOffset("title"),
           subtitleOffset: readTextOffset("subtitle"),
+          carouselSlides: carouselSlides ?? [],
         }),
     });
     setSaving(false);
@@ -545,6 +564,8 @@ export function ArtEditor({ postId, photos, templates, initial, onSaved }: Props
           className="h-2 w-full cursor-pointer appearance-none rounded-full bg-line accent-brand-500"
         />
       </div>
+
+      {template && renderCarousel?.({ width: template.canvasWidth, height: template.canvasHeight })}
 
       {textMoved && (
         <button type="button" className="btn-ghost btn-sm w-full" onClick={() => {
@@ -618,7 +639,13 @@ export function ArtEditor({ postId, photos, templates, initial, onSaved }: Props
       )}
 
       <button onClick={save} className="btn-primary w-full" disabled={saving}>
-        {saving ? dict.artEditor.savingButton : dict.artEditor.saveButton}
+        {saving
+          ? isCarousel
+            ? dict.carousel.savingButton
+            : dict.artEditor.savingButton
+          : isCarousel
+            ? dict.carousel.saveButton.replace("{count}", String((carouselSlides?.length ?? 0) + 1))
+            : dict.artEditor.saveButton}
       </button>
     </div>
   );

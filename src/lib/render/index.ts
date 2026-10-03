@@ -139,6 +139,37 @@ export async function renderAndStore(
   return url;
 }
 
+/**
+ * Carousel photo after the cover: only the photo, no template and no text —
+ * the whole canvas is the photo slot, with the same pan/zoom units the editor
+ * (SlideFramer) uses, so the result matches the thumbnail. JPEG: the format
+ * Instagram documents for carousel items, and much lighter than PNG for a
+ * full-bleed photo.
+ */
+export async function renderSlideAndStore(
+  params: { photoUrl: string; canvasWidth: number; canvasHeight: number; transform: unknown },
+  key: string,
+): Promise<string> {
+  const transform = photoTransformSchema.parse(params.transform ?? {});
+  const photoBuf = await fetchBuffer(params.photoUrl);
+  const slot = { x: 0, y: 0, width: params.canvasWidth, height: params.canvasHeight };
+  const slotImg = await renderPhotoIntoSlot(photoBuf, slot, transform);
+
+  const buf = await sharp({
+    create: {
+      width: params.canvasWidth,
+      height: params.canvasHeight,
+      channels: 3,
+      background: { r: 0, g: 0, b: 0 },
+    },
+  })
+    .composite(slotImg ? [{ input: slotImg, left: 0, top: 0 }] : [])
+    .jpeg({ quality: 90 })
+    .toBuffer();
+  const { url } = await putObject(key, buf, "image/jpeg");
+  return url;
+}
+
 // ── Internos ─────────────────────────────────────────────────
 
 async function renderPhotoIntoSlot(

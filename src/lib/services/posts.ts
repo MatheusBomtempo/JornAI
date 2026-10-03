@@ -3,9 +3,13 @@ import { prisma } from "../db";
 import { generatePostContent } from "../ai";
 import { scrapeUrl } from "../scrape";
 import { compactSource } from "../compact";
-import { renderAndStore } from "../render";
+import { renderAndStore, renderSlideAndStore } from "../render";
 import { renderVideoAndStore, extractAndStoreMiddleFrame } from "../render/video";
-import { publishToInstagram, publishVideoToInstagram } from "../instagram";
+import {
+  publishToInstagram,
+  publishVideoToInstagram,
+  publishCarouselToInstagram,
+} from "../instagram";
 import { canEditPost, canReviewPost, can } from "../rbac";
 import { PURGE_SELECT, purgePostsWithMedia } from "./retention";
 import { getAppSettings } from "./settings";
@@ -21,7 +25,7 @@ import type {
   addPhotoSchema,
   addVideoSchema,
 } from "../validation";
-import type { User, PostVersion } from "@prisma/client";
+import { Prisma, type User, type PostVersion } from "@prisma/client";
 import type { CompactResult } from "../compact";
 
 type CreatePostInput = z.infer<typeof createPostSchema>;
@@ -210,7 +214,16 @@ export async function saveArtAndRender(
     throw badRequest("Invalid template.");
   }
 
-  const renderedArtUrl = await renderAndStore(
+  // Carousel photos 2..N — every one must belong to this post.
+  const slideIds = input.carouselSlides.map((s) => s.photoId);
+  const slidePhotos = slideIds.length
+    ? await prisma.postPhoto.findMany({ where: { id: { in: slideIds }, postId } })
+    : [];
+  if (slidePhotos.length !== slideIds.length) throw badRequest("Invalid carousel photo.");
+  const slideUrlById = new Map(slidePhotos.map((p) => [p.id, p.storageUrl]));
+
+  const stamp = Date.now();
+  const coverRender = renderAndStore(
     {
       canvasWidth: template.canvasWidth,
       canvasHeight: template.canvasHeight,
@@ -225,8 +238,21 @@ export async function saveArtAndRender(
       titleOffset: input.titleOffset,
       subtitleOffset: input.subtitleOffset,
     },
-    `art/${postId}/v${version.versionNumber}-${Date.now()}.png`,
+    `art/${postId}/v${version.versionNumber}-${stamp}.png`,
   );
+  // Same proportion as the cover (Instagram crops every item to the first one's).
+  const slideRenders = input.carouselSlides.map((slide, i) =>
+    renderSlideAndStore(
+      {
+        photoUrl: slideUrlById.get(slide.photoId)!,
+        canvasWidth: template.canvasWidth,
+        canvasHeight: template.canvasHeight,
+        transform: slide.transform,
+      },
+      `art/${postId}/v${version.versionNumber}-${stamp}-s${i + 2}.jpg`,
+    ),
+  );
+  const [renderedArtUrl, ...renderedSlideUrls] = await Promise.all([coverRender, ...slideRenders]);
 
   const updatedVersion = await prisma.postVersion.update({
     where: { id: version.id },
@@ -239,6 +265,9 @@ export async function saveArtAndRender(
       titleOffset: input.titleOffset,
       subtitleOffset: input.subtitleOffset,
       renderedArtUrl,
+      // Empty when it is not a carousel — saving a single photo turns it off.
+      carouselSlides: input.carouselSlides.length ? input.carouselSlides : Prisma.DbNull,
+      renderedSlideUrls,
       editedBy: user.id,
     },
   });
@@ -451,6 +480,7 @@ export async function regeneratePost(
       photoTransform: prev.photoTransform ?? undefined,
       titleOffset: prev.titleOffset ?? undefined,
       subtitleOffset: prev.subtitleOffset ?? undefined,
+      carouselSlides: prev.carouselSlides ?? undefined,
       selectedVideoId: prev.selectedVideoId,
       videoTemplate: prev.videoTemplate,
       editedBy: user.id,
@@ -515,6 +545,9 @@ export async function editVersionManually(
       titleOffset: source.titleOffset ?? undefined,
       subtitleOffset: source.subtitleOffset ?? undefined,
       renderedArtUrl: source.renderedArtUrl,
+      // Carousel photos carry no text: the rendered ones stay valid.
+      carouselSlides: source.carouselSlides ?? undefined,
+      renderedSlideUrls: source.renderedSlideUrls,
       selectedVideoId: source.selectedVideoId,
       videoTemplate: source.videoTemplate,
       renderedVideoUrl: source.renderedVideoUrl,
@@ -635,9 +668,15 @@ async function publishVersion(postId: string, version: PostVersion) {
 
   try {
     const caption = version.instagramCaption ?? version.title ?? "";
+    const isCarousel = !isVideo && version.renderedSlideUrls.length > 0;
     const result = isVideo
       ? await publishVideoToInstagram(version.renderedVideoUrl!, caption)
-      : await publishToInstagram(version.renderedArtUrl!, caption);
+      : isCarousel
+        ? await publishCarouselToInstagram(
+            [version.renderedArtUrl!, ...version.renderedSlideUrls],
+            caption,
+          )
+        : await publishToInstagram(version.renderedArtUrl!, caption);
     await prisma.publication.update({
       where: { id: publication.id },
       data: {
@@ -807,6 +846,7 @@ export function listPosts(companyId: string, opts: { status?: string; mineFor?: 
           subtitle: true,
           renderedArtUrl: true,
           renderedVideoUrl: true,
+          renderedSlideUrls: true,
           versionNumber: true,
           // Only the static frame — the feed card never needs to download the
           // whole rendered (heavy) video just to show a thumbnail.

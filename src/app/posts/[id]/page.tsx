@@ -6,6 +6,7 @@ import { AppShell } from "@/components/AppShell";
 import { PostWorkspace } from "@/components/PostWorkspace";
 import type { EditorTemplate } from "@/components/ArtEditor";
 import { sortTemplatesByFormat, type Credit } from "@/lib/domain";
+import type { CarouselSlide } from "@/lib/carousel";
 
 export const dynamic = "force-dynamic";
 
@@ -81,6 +82,8 @@ export default async function PostPage({
       selectedVideoId: v.selectedVideoId,
       videoTemplate: v.videoTemplate,
       renderedVideoUrl: v.renderedVideoUrl,
+      carouselSlides: (v.carouselSlides as CarouselSlide[] | null) ?? [],
+      renderedSlideUrls: v.renderedSlideUrls,
       createdAt: v.createdAt.toISOString(),
       decisions: v.decisions.map((d) => ({
         id: d.id,

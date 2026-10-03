@@ -6,15 +6,18 @@ import { useRouter } from "next/navigation";
 import { apiGet, apiPost, apiPatch, uploadWithProgress, type UploadProgress } from "@/lib/api-client";
 import { ArtEditor, type EditorTemplate, type EditorPhoto } from "./ArtEditor";
 import { VideoEditor, type EditorVideo } from "./VideoEditor";
-import { InstagramPreview } from "./InstagramPreview";
+import { InstagramPreview, CarouselTrack } from "./InstagramPreview";
+import { CarouselManager } from "./CarouselManager";
 import { StatusBadge } from "./StatusBadge";
 import { Stepper } from "./Stepper";
 import { BusyLabel, useElapsedSeconds } from "./Spinner";
 import { useLocale } from "./LocaleProvider";
 import { useActionOverlay, type RunContext } from "./ActionOverlay";
+import { DEFAULT_SLIDE_TRANSFORM, type CarouselSlide } from "@/lib/carousel";
 import {
   POST_STATUS,
   PEER_APPROVALS_NEEDED,
+  CAROUSEL_MAX,
   formatCredit,
   type Credit,
   type UserRole,
@@ -93,6 +96,8 @@ interface Version {
   selectedVideoId: string | null;
   videoTemplate: string | null;
   renderedVideoUrl: string | null;
+  carouselSlides: CarouselSlide[];
+  renderedSlideUrls: string[];
   createdAt: string;
   decisions: {
     id: string;
@@ -210,17 +215,83 @@ export function PostWorkspace({ user, post, templates, company }: Props) {
     [dict, dateLocale],
   );
 
+  // Upload + attach of one photo, no UI side effects — shared by the single
+  // photo, the carousel (several in a row) and the photo replacement (blur).
+  const uploadPhotoFile = useCallback(
+    async (
+      file: File,
+      { log, progress }: Pick<RunContext, "log" | "progress">,
+      label?: string,
+    ): Promise<string> => {
+      // Bar at 0% from the start: the "do not leave the app" warning depends on it.
+      progress(0, label);
+      const fd = new FormData();
+      fd.append("file", file);
+      const up = await uploadWithProgress<{ url: string }>(
+        "/api/upload",
+        { method: "POST", body: fd },
+        label ? (sent, total) => progress(sent / total, label) : uploadProgress(progress),
+      );
+      progress(null);
+      log(dict.postWorkspace.upload.photoOnServer);
+      const { photo } = await apiPost<{ photo: { id: string } }>(
+        `/api/posts/${post.id}/photos`,
+        { storageUrl: up.url },
+      );
+      return photo.id;
+    },
+    [post.id, dict, uploadProgress],
+  );
+
+  /** Same checks as the single upload; returns the error message, or null. */
+  const photoFileError = useCallback(
+    (file: File): string | null => {
+      if (!file.type.startsWith("image/")) return dict.postWorkspace.errors.invalidFileType;
+      if (file.size > MAX_PHOTO_MB * 1024 * 1024) {
+        return `${dict.postWorkspace.errors.fileTooLargePrefix} ${MAX_PHOTO_MB} ${dict.postWorkspace.errors.fileTooLargeSuffix}`;
+      }
+      return null;
+    },
+    [dict],
+  );
+
+  // ── Carousel ──
+  // Lives here (not in the ArtEditor) so it survives router.refresh() and the
+  // editor remounts. coverId = photo 1 (template + text); slides = photos 2..N.
+  const [carousel, setCarousel] = useState<{ coverId: string; slides: CarouselSlide[] } | null>(
+    () =>
+      current?.selectedPhotoId && current.carouselSlides.length
+        ? { coverId: current.selectedPhotoId, slides: current.carouselSlides }
+        : null,
+  );
+  const [carouselError, setCarouselError] = useState<string | null>(null);
+  const [carouselBusy, setCarouselBusy] = useState(false);
+  const carouselInputRef = useRef<HTMLInputElement>(null);
+
+  /** A newly attached photo: in a carousel it becomes the next slide, otherwise the photo in the editor. */
+  const attachNewPhoto = useCallback(
+    (id: string) => {
+      if (!carousel) {
+        setLastAddedPhotoId(id);
+        return;
+      }
+      if (1 + carousel.slides.length >= CAROUSEL_MAX) {
+        setCarouselError(dict.carousel.full.replace("{max}", String(CAROUSEL_MAX)));
+        return;
+      }
+      setCarousel((prev) =>
+        prev ? { ...prev, slides: [...prev.slides, { photoId: id, transform: DEFAULT_SLIDE_TRANSFORM }] } : prev,
+      );
+    },
+    [carousel, dict],
+  );
+
   const addPhoto = useCallback(
     async (file: File | undefined | null) => {
       if (!file) return;
-      if (!file.type.startsWith("image/")) {
-        setPhotoError(dict.postWorkspace.errors.invalidFileType);
-        return;
-      }
-      if (file.size > MAX_PHOTO_MB * 1024 * 1024) {
-        setPhotoError(
-          `${dict.postWorkspace.errors.fileTooLargePrefix} ${MAX_PHOTO_MB} ${dict.postWorkspace.errors.fileTooLargeSuffix}`,
-        );
+      const invalid = photoFileError(file);
+      if (invalid) {
+        setPhotoError(invalid);
         return;
       }
       setPhotoError(null);
@@ -231,31 +302,145 @@ export function PostWorkspace({ user, post, templates, company }: Props) {
       const result = await runAction({
         title: dict.postWorkspace.busy.uploadingPhoto,
         success: dict.postWorkspace.done.photoAdded,
-        fn: async ({ log, progress }) => {
-          // Bar at 0% from the start: the "do not leave the app" warning depends on it.
-          progress(0);
-          const fd = new FormData();
-          fd.append("file", file);
-          const up = await uploadWithProgress<{ url: string }>(
-            "/api/upload",
-            { method: "POST", body: fd },
-            uploadProgress(progress),
-          );
-          progress(null);
-          log(dict.postWorkspace.upload.photoOnServer);
-          const { photo } = await apiPost<{ photo: { id: string } }>(
-            `/api/posts/${post.id}/photos`,
-            { storageUrl: up.url },
-          );
-          return photo;
-        },
+        fn: (ctx) => uploadPhotoFile(file, ctx),
       });
       setPhotoBusy(false);
       if (!result.ok) return;
-      setLastAddedPhotoId(result.value.id);
+      attachNewPhoto(result.value);
       router.refresh();
     },
-    [post.id, router, dict, runAction, uploadProgress],
+    [router, dict, runAction, uploadPhotoFile, photoFileError, attachNewPhoto],
+  );
+
+  /**
+   * Several photos at once for the carousel. Photos only: anything else
+   * (video included) is left out with a warning. The order is the one the
+   * files arrive in — the first becomes the cover when there is none yet, and
+   * the manager makes the reporter double-check it ("Make cover").
+   */
+  const addCarouselPhotos = useCallback(
+    async (fileList: FileList | File[] | null | undefined) => {
+      const files = Array.from(fileList ?? []);
+      if (!files.length) return;
+      if (post.videos.length > 0) {
+        setCarouselError(dict.carousel.videoBlocked);
+        return;
+      }
+      const messages: string[] = [];
+      const notPhotos = files.filter((f) => !f.type.startsWith("image/"));
+      if (notPhotos.length) {
+        messages.push(dict.carousel.videosIgnored.replace("{count}", String(notPhotos.length)));
+      }
+      let photos = files.filter((f) => f.type.startsWith("image/"));
+      for (const f of photos) {
+        const invalid = photoFileError(f);
+        if (invalid) messages.push(`${f.name}: ${invalid}`);
+      }
+      photos = photos.filter((f) => !photoFileError(f));
+
+      const existingCover =
+        carousel?.coverId ?? lastAddedPhotoId ?? current?.selectedPhotoId ?? post.photos[0]?.id;
+      const used = carousel ? 1 + carousel.slides.length : existingCover ? 1 : 0;
+      const room = CAROUSEL_MAX - used;
+      if (room <= 0) {
+        messages.push(dict.carousel.full.replace("{max}", String(CAROUSEL_MAX)));
+        photos = [];
+      } else if (photos.length > room) {
+        messages.push(
+          dict.carousel.overLimit
+            .replace("{max}", String(CAROUSEL_MAX))
+            .replace("{count}", String(photos.length - room)),
+        );
+        photos = photos.slice(0, room);
+      }
+      setCarouselError(messages.length ? messages.join(" ") : null);
+      if (!photos.length) return;
+
+      setCarouselBusy(true);
+      // Ids collected outside the action: if photo 4 of 6 fails, the 3 already
+      // attached still join the carousel instead of being lost.
+      const ids: string[] = [];
+      await runAction({
+        title: dict.carousel.uploading,
+        success: dict.carousel.uploaded,
+        slowAfterSeconds: 30,
+        fn: async (ctx) => {
+          for (let i = 0; i < photos.length; i++) {
+            const label = dict.carousel.uploadingOne
+              .replace("{index}", String(i + 1))
+              .replace("{total}", String(photos.length));
+            ctx.log(label);
+            ids.push(await uploadPhotoFile(photos[i], ctx, label));
+          }
+        },
+      });
+      setCarouselBusy(false);
+      if (!ids.length) return;
+
+      const toSlides = (list: string[]) =>
+        list.map((photoId) => ({ photoId, transform: DEFAULT_SLIDE_TRANSFORM }));
+      setCarousel((prev) => {
+        if (prev) return { ...prev, slides: [...prev.slides, ...toSlides(ids)] };
+        if (existingCover) return { coverId: existingCover, slides: toSlides(ids) };
+        return { coverId: ids[0], slides: toSlides(ids.slice(1)) };
+      });
+      router.refresh();
+    },
+    [
+      post.videos.length, post.photos, carousel, lastAddedPhotoId, current?.selectedPhotoId,
+      dict, runAction, uploadPhotoFile, photoFileError, router,
+    ],
+  );
+
+  const openCarouselPicker = () => {
+    if (post.videos.length > 0) {
+      setCarouselError(dict.carousel.videoBlocked);
+      return;
+    }
+    carouselInputRef.current?.click();
+  };
+
+  /** Swaps slide `index` with the cover — the old cover takes its place, centered. */
+  const makeCover = (index: number) =>
+    setCarousel((prev) => {
+      if (!prev || !prev.slides[index]) return prev;
+      const slides = [...prev.slides];
+      const nextCover = slides[index].photoId;
+      slides[index] = { photoId: prev.coverId, transform: DEFAULT_SLIDE_TRANSFORM };
+      return { coverId: nextCover, slides };
+    });
+
+  const exitCarousel = () => {
+    if (carousel && carousel.coverId !== current?.selectedPhotoId) setLastAddedPhotoId(carousel.coverId);
+    setCarousel(null);
+    setCarouselError(null);
+  };
+
+  /**
+   * Puts an edited copy (e.g. blurred faces) in place of a carousel photo:
+   * uploads it as a new photo — the original stays in the post untouched — and
+   * swaps the id in the same position, keeping that photo's framing.
+   */
+  const replaceCarouselPhoto = useCallback(
+    async (photoId: string, file: File) => {
+      const result = await runAction({
+        title: dict.postWorkspace.busy.uploadingPhoto,
+        success: dict.postWorkspace.done.photoAdded,
+        fn: (ctx) => uploadPhotoFile(file, ctx),
+      });
+      if (!result.ok) return;
+      const newId = result.value;
+      setCarousel((prev) =>
+        prev
+          ? {
+              coverId: prev.coverId === photoId ? newId : prev.coverId,
+              slides: prev.slides.map((s) => (s.photoId === photoId ? { ...s, photoId: newId } : s)),
+            }
+          : prev,
+      );
+      router.refresh();
+    },
+    [dict, runAction, uploadPhotoFile, router],
   );
 
   // Built-in Pexels search (see PhotoPickerModal) — string = query open in the
@@ -283,11 +468,11 @@ export function PostWorkspace({ user, post, templates, company }: Props) {
         },
       });
       if (!result.ok) return false;
-      setLastAddedPhotoId(result.value.id);
+      attachNewPhoto(result.value.id);
       router.refresh();
       return true;
     },
-    [post.id, router, dict, runAction],
+    [post.id, router, dict, runAction, attachNewPhoto],
   );
 
   // Same idea as addPhoto, for video — attaches, reloads and already leaves the
@@ -384,6 +569,8 @@ export function PostWorkspace({ user, post, templates, company }: Props) {
   const hasPhotos = post.photos.length > 0;
   const hasVideos = post.videos.length > 0;
   const hasTemplates = templates.length > 0;
+  // Photo the art editor frames: the carousel cover, a just-added photo, or the saved one.
+  const coverPhotoId = carousel?.coverId ?? lastAddedPhotoId ?? current?.selectedPhotoId;
 
   const approvals = current?.decisions.filter((d) => d.decision === "approved") ?? [];
   const myApproval = approvals.find((d) => d.reviewer.id === user.id);
@@ -518,6 +705,13 @@ export function PostWorkspace({ user, post, templates, company }: Props) {
                       : dict.postWorkspace.image.noVideoReadOnly}
                   </EmptyNote>
                 )
+              ) : current?.renderedArtUrl && current.renderedSlideUrls.length > 0 ? (
+                <div className="mx-auto max-w-[420px] overflow-hidden rounded-xl border border-line">
+                  <CarouselTrack
+                    urls={[current.renderedArtUrl, ...current.renderedSlideUrls]}
+                    aspectRatio={previewRatio ?? 1080 / 1350}
+                  />
+                </div>
               ) : current?.renderedArtUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
@@ -557,8 +751,10 @@ export function PostWorkspace({ user, post, templates, company }: Props) {
                   onPick={() => videoInputRef.current?.click()}
                 />
               </div>
+              <CarouselButton busy={carouselBusy} onClick={openCarouselPicker} />
               {photoError && <p className="alert-error">{photoError}</p>}
               {videoError && <p className="alert-error">{videoError}</p>}
+              {carouselError && <p className="alert-error">{carouselError}</p>}
               <ImageSuggestions
                 suggestions={current?.imageSuggestions ?? []}
                 onSearchPhotos={setPhotoPickerQuery}
@@ -583,6 +779,9 @@ export function PostWorkspace({ user, post, templates, company }: Props) {
                   {videoError && <p className="alert-error">{videoError}</p>}
                 </div>
               </details>
+
+              {/* Carousels take photos only — blocked (and explained) on a video post. */}
+              <CarouselButton disabled note={dict.carousel.videoBlocked} onClick={() => {}} />
 
               <VideoEditor
                 key={post.videos.map((v) => v.id).join(",")}
@@ -631,16 +830,42 @@ export function PostWorkspace({ user, post, templates, company }: Props) {
                 </div>
               </details>
 
+              {!carousel && <CarouselButton busy={carouselBusy} onClick={openCarouselPicker} />}
+              {carouselError && <p className="alert-error">{carouselError}</p>}
+
               <ArtEditor
-                key={post.photos.map((p) => p.id).join(",")}
+                // In a carousel only the cover remounts the editor: adding,
+                // framing or editing photos 2..N keeps the title being typed.
+                key={carousel ? `carousel:${carousel.coverId}` : post.photos.map((p) => p.id).join(",")}
                 postId={post.id}
                 photos={post.photos}
                 templates={templates}
+                carouselSlides={carousel?.slides}
+                renderCarousel={
+                  carousel
+                    ? (canvas) => (
+                        <CarouselManager
+                          cover={post.photos.find((p) => p.id === carousel.coverId)}
+                          slides={carousel.slides}
+                          photos={post.photos}
+                          canvas={canvas}
+                          busy={carouselBusy}
+                          onChange={(slides) => setCarousel({ ...carousel, slides })}
+                          onMakeCover={makeCover}
+                          onAddPhotos={openCarouselPicker}
+                          onExit={exitCarousel}
+                          onReplacePhoto={replaceCarouselPhoto}
+                        />
+                      )
+                    : undefined
+                }
                 initial={{
-                  selectedPhotoId: lastAddedPhotoId ?? current?.selectedPhotoId,
+                  selectedPhotoId: coverPhotoId,
                   artTemplateId: current?.artTemplateId,
                   photoTransform:
-                    lastAddedPhotoId ? null : current?.photoTransform,
+                    coverPhotoId && coverPhotoId === current?.selectedPhotoId
+                      ? current?.photoTransform
+                      : null,
                   title: current?.title,
                   subtitle: current?.subtitle,
                   titleOffset: current?.titleOffset,
@@ -669,6 +894,19 @@ export function PostWorkspace({ user, post, templates, company }: Props) {
                 className="hidden"
                 onChange={(e) => addVideo(e.target.files?.[0])}
               />
+              {/* `accept` only filters the picker — a video that still gets through
+                  (drag-and-drop, "all files") is refused in addCarouselPhotos. */}
+              <input
+                ref={carouselInputRef}
+                type="file"
+                multiple
+                accept="image/png,image/jpeg,image/webp"
+                className="hidden"
+                onChange={(e) => {
+                  addCarouselPhotos(e.target.files);
+                  e.target.value = "";
+                }}
+              />
             </>
           )}
         </section>
@@ -683,6 +921,7 @@ export function PostWorkspace({ user, post, templates, company }: Props) {
             <InstagramPreview
               artUrl={current?.renderedArtUrl}
               videoUrl={current?.renderedVideoUrl}
+              slideUrls={current?.renderedSlideUrls}
               caption={current?.instagramCaption}
               aspectRatio={previewRatio}
               handle={company.instagramHandle ?? company.name ?? undefined}
@@ -945,6 +1184,38 @@ function PhotoUploader({
       <p className="text-xs text-muted">
         {dict.postWorkspace.photoUploader.formatsPrefix} {MAX_PHOTO_MB} {dict.postWorkspace.photoUploader.mbSuffix}
       </p>
+    </div>
+  );
+}
+
+/**
+ * "Carousel" entry, right under the photo/video uploaders. Disabled with an
+ * explanation on a video post — carousels take photos only.
+ */
+function CarouselButton({
+  onClick, busy, disabled, note,
+}: {
+  onClick: () => void;
+  busy?: boolean;
+  disabled?: boolean;
+  note?: string;
+}) {
+  const { dict } = useLocale();
+  return (
+    <div className="space-y-1.5">
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={disabled || busy}
+        className="flex w-full flex-col items-center gap-0.5 rounded-xl border border-line bg-elevated/60 px-4 py-3
+                   text-center transition-colors hover:border-brand-500/60 disabled:cursor-not-allowed disabled:opacity-40"
+      >
+        <span className="text-sm font-medium">{dict.carousel.button}</span>
+        <span className="text-xs text-muted">
+          {dict.carousel.buttonHint.replace("{max}", String(CAROUSEL_MAX))}
+        </span>
+      </button>
+      {note && <p className="hint my-0 text-center">{note}</p>}
     </div>
   );
 }

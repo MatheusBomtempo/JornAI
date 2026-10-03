@@ -146,14 +146,26 @@ export default async function DashboardPage({
                       ▶
                     </div>
                   ) : v?.renderedArtUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={v.renderedArtUrl}
-                      alt={v.title ?? dict.instagramPreview.artAlt}
-                      loading={index < 3 ? "eager" : "lazy"}
-                      decoding="async"
-                      className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
-                    />
+                    <div className="relative h-full w-full">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={v.renderedArtUrl}
+                        alt={v.title ?? dict.instagramPreview.artAlt}
+                        loading={index < 3 ? "eager" : "lazy"}
+                        decoding="async"
+                        className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+                      />
+                      {v.renderedSlideUrls.length > 0 && (
+                        // Carousel: the cover is the thumbnail; the badge tells how many photos.
+                        <span
+                          className="absolute bottom-2 right-2 flex h-6 items-center gap-1 rounded-full bg-black/60 px-2 text-[11px] font-semibold text-white backdrop-blur-sm"
+                          title={dict.carousel.heading}
+                        >
+                          <span aria-hidden>❐</span>
+                          {v.renderedSlideUrls.length + 1}
+                        </span>
+                      )}
+                    </div>
                   ) : (
                     <div className="flex h-full items-center justify-center px-4 text-center text-xs text-faint">
                       {dict.dashboard.artNotGenerated}

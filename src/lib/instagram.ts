@@ -116,6 +116,64 @@ export async function publishToInstagram(
   return { creationId, mediaId, permalink };
 }
 
+// ── Carousel ─────────────────────────────────────────────────
+/**
+ * Carousel publishing (Graph API): one container per image flagged
+ * `is_carousel_item` (no caption), then a parent CAROUSEL container listing
+ * the children (the caption goes here), and finally the usual publish. The
+ * first URL is the cover — Instagram keeps the order given in `children`.
+ */
+async function createCarouselItemContainer(imageUrl: string): Promise<string> {
+  const { userId, token } = assertConfigured();
+  const res = await fetch(`${baseUrl()}/${userId}/media`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ image_url: imageUrl, is_carousel_item: true, access_token: token }),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.id) {
+    throw new Error(igError("create a carousel item", data));
+  }
+  return data.id as string;
+}
+
+export async function publishCarouselToInstagram(
+  imageUrls: string[],
+  caption: string,
+): Promise<PublishResult> {
+  const { userId, token } = assertConfigured();
+  if (imageUrls.length < 2) throw new Error("A carousel needs at least 2 images.");
+
+  // Sequential on purpose: keeps the order obvious in the logs and stays far
+  // from Meta's rate limit; 10 photos are a few seconds anyway.
+  const children: string[] = [];
+  for (const url of imageUrls) {
+    const id = await createCarouselItemContainer(url);
+    await waitForContainerReady(id, token, "image");
+    children.push(id);
+  }
+
+  const res = await fetch(`${baseUrl()}/${userId}/media`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      media_type: "CAROUSEL",
+      children: children.join(","),
+      caption,
+      access_token: token,
+    }),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.id) {
+    throw new Error(igError("create the carousel container", data));
+  }
+  const creationId = data.id as string;
+  await waitForContainerReady(creationId, token, "image");
+  const mediaId = await publishMediaContainer(creationId);
+  const permalink = await fetchPermalink(mediaId);
+  return { creationId, mediaId, permalink };
+}
+
 // ── Video (Reels) ────────────────────────────────────────────
 /**
  * Video publishing is asynchronous on Meta's side: it creates the container
