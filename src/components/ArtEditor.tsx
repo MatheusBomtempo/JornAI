@@ -458,8 +458,12 @@ export function ArtEditor({
       fx.current?.canvas?.dispose?.();
       fx.current = null;
     };
+    // photo?.id, not photoId: a photo just uploaded (e.g. a carousel cover
+    // swapped for its blurred copy) is only in `photos` after the refresh —
+    // until then `photo` falls back to photos[0], and the canvas must redraw
+    // once the real one arrives.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [photoId, templateId, displayW]);
+  }, [photo?.id, templateId, displayW]);
 
   // Live text in the preview (same layout as the final art, including the
   // shrink/"…" when it does not fit the slot).
