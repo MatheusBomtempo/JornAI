@@ -862,7 +862,8 @@ export function listPosts(companyId: string, opts: { status?: string; mineFor?: 
           subtitle: true,
           renderedArtUrl: true,
           renderedVideoUrl: true,
-          renderedSlideUrls: true,
+          // Carousel: the feed card is only the compact thumbnail — the cover
+          // (renderedArtUrl). The other photos are never read here.
           versionNumber: true,
           // Only the static frame — the feed card never needs to download the
           // whole rendered (heavy) video just to show a thumbnail.
