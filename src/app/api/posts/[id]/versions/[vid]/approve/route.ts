@@ -1,5 +1,6 @@
 import { type NextRequest } from "next/server";
 import { requireCompanyUser } from "@/lib/auth";
+import { approveSchema } from "@/lib/validation";
 import { approveAndPublish } from "@/lib/services/posts";
 import { ok, route } from "@/lib/http";
 
@@ -8,14 +9,17 @@ import { ok, route } from "@/lib/http";
 export const maxDuration = 290;
 
 // POST /posts/:id/versions/:vid/approve — aprova e publica no Instagram
+// Body (optional): { shareToStory?: boolean } — also posts it to the story.
 export const POST = route(
   async (
-    _req: NextRequest,
+    req: NextRequest,
     ctx: { params: Promise<{ id: string; vid: string }> },
   ) => {
     const user = await requireCompanyUser();
     const { id, vid } = await ctx.params;
-    const post = await approveAndPublish(user, id, vid);
+    // The body is optional: older API clients call this with no body at all.
+    const opts = approveSchema.parse(await req.json().catch(() => ({})));
+    const post = await approveAndPublish(user, id, vid, opts);
     return ok({ post });
   },
 );

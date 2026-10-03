@@ -3,14 +3,25 @@ import { prisma } from "../db";
 import { generatePostContent } from "../ai";
 import { scrapeUrl } from "../scrape";
 import { compactSource } from "../compact";
-import { renderAndStore } from "../render";
+import { renderAndStore, renderSlideAndStore } from "../render";
 import { renderVideoAndStore, extractAndStoreMiddleFrame } from "../render/video";
-import { publishToInstagram, publishVideoToInstagram } from "../instagram";
+import {
+  publishToInstagram,
+  publishVideoToInstagram,
+  publishCarouselToInstagram,
+  publishStoryToInstagram,
+} from "../instagram";
 import { canEditPost, canReviewPost, can } from "../rbac";
 import { PURGE_SELECT, purgePostsWithMedia } from "./retention";
 import { getAppSettings } from "./settings";
 import { ApiError, badRequest, conflict, forbidden, notFound } from "../http";
-import { POST_STATUS, PUBLICATION_STATUS, PEER_APPROVALS_NEEDED, type Credit } from "../domain";
+import {
+  POST_STATUS,
+  PUBLICATION_STATUS,
+  PUBLICATION_KIND,
+  PEER_APPROVALS_NEEDED,
+  type Credit,
+} from "../domain";
 import type { z } from "zod";
 import type {
   createPostSchema,
@@ -21,8 +32,10 @@ import type {
   addPhotoSchema,
   addVideoSchema,
 } from "../validation";
-import type { User, PostVersion } from "@prisma/client";
+import { Prisma, type User, type PostVersion } from "@prisma/client";
 import type { CompactResult } from "../compact";
+import { testPostContent } from "../i18n/server-messages";
+import { getContentLanguage } from "../language/config";
 
 type CreatePostInput = z.infer<typeof createPostSchema>;
 type SaveArtInput = z.infer<typeof saveArtSchema>;
@@ -67,6 +80,8 @@ function assertSameCompany(postCompanyId: string, userCompanyId: string): void {
 
 // ── 1) Create post + AI pipeline (text only) ─────────────────
 export async function createPostWithAi(user: CompanyUser, input: CreatePostInput) {
+  if (isTestSubmission(input)) return createTestPost(user, input);
+
   // Links pasted in the middle of the text are sources too: without this,
   // "link1 link2" (or link + note) went to the AI as a bare URL with no
   // content read — it ended up writing about only one of them (or from the
@@ -104,6 +119,13 @@ export async function createPostWithAi(user: CompanyUser, input: CreatePostInput
   const firstFailure = scrapes.find((r) => r.status === "rejected");
   if (urls.length && !support.length && !sourceText && !input.document && firstFailure) {
     throw (firstFailure as PromiseRejectedResult).reason;
+  }
+  // A couple of loose words with no link or document ("oi", "acidente"): there
+  // is nothing for the AI to work from, and it would invent the whole story.
+  if (!urls.length && !input.document && !sourceText) {
+    throw badRequest(
+      "The text is too short to write a story. Send at least one sentence about what happened, a link or a document.",
+    );
   }
   if (!sourceText && titles.length) sourceText = titles.join("\n");
   if (input.document) {
@@ -210,7 +232,16 @@ export async function saveArtAndRender(
     throw badRequest("Invalid template.");
   }
 
-  const renderedArtUrl = await renderAndStore(
+  // Carousel photos 2..N — every one must belong to this post.
+  const slideIds = input.carouselSlides.map((s) => s.photoId);
+  const slidePhotos = slideIds.length
+    ? await prisma.postPhoto.findMany({ where: { id: { in: slideIds }, postId } })
+    : [];
+  if (slidePhotos.length !== slideIds.length) throw badRequest("Invalid carousel photo.");
+  const slideUrlById = new Map(slidePhotos.map((p) => [p.id, p.storageUrl]));
+
+  const stamp = Date.now();
+  const coverRender = renderAndStore(
     {
       canvasWidth: template.canvasWidth,
       canvasHeight: template.canvasHeight,
@@ -225,8 +256,21 @@ export async function saveArtAndRender(
       titleOffset: input.titleOffset,
       subtitleOffset: input.subtitleOffset,
     },
-    `art/${postId}/v${version.versionNumber}-${Date.now()}.png`,
+    `art/${postId}/v${version.versionNumber}-${stamp}.png`,
   );
+  // Same proportion as the cover (Instagram crops every item to the first one's).
+  const slideRenders = input.carouselSlides.map((slide, i) =>
+    renderSlideAndStore(
+      {
+        photoUrl: slideUrlById.get(slide.photoId)!,
+        canvasWidth: template.canvasWidth,
+        canvasHeight: template.canvasHeight,
+        transform: slide.transform,
+      },
+      `art/${postId}/v${version.versionNumber}-${stamp}-s${i + 2}.jpg`,
+    ),
+  );
+  const [renderedArtUrl, ...renderedSlideUrls] = await Promise.all([coverRender, ...slideRenders]);
 
   const updatedVersion = await prisma.postVersion.update({
     where: { id: version.id },
@@ -239,6 +283,9 @@ export async function saveArtAndRender(
       titleOffset: input.titleOffset,
       subtitleOffset: input.subtitleOffset,
       renderedArtUrl,
+      // Empty when it is not a carousel — saving a single photo turns it off.
+      carouselSlides: input.carouselSlides.length ? input.carouselSlides : Prisma.DbNull,
+      renderedSlideUrls,
       editedBy: user.id,
     },
   });
@@ -413,6 +460,11 @@ export async function regeneratePost(
     throw forbidden("You are not allowed to redo this.");
   }
 
+  // A test post ("teste") has no source at all — the AI would invent everything.
+  if (!post.sourceText && !post.scrapedContent && !post.sourceUrl) {
+    throw badRequest("This story has no source text for the AI to rewrite. Edit the text by hand.");
+  }
+
   const prev = await latestVersion(postId);
 
   const photoCount = await prisma.postPhoto.count({ where: { postId } });
@@ -451,6 +503,7 @@ export async function regeneratePost(
       photoTransform: prev.photoTransform ?? undefined,
       titleOffset: prev.titleOffset ?? undefined,
       subtitleOffset: prev.subtitleOffset ?? undefined,
+      carouselSlides: prev.carouselSlides ?? undefined,
       selectedVideoId: prev.selectedVideoId,
       videoTemplate: prev.videoTemplate,
       editedBy: user.id,
@@ -515,6 +568,9 @@ export async function editVersionManually(
       titleOffset: source.titleOffset ?? undefined,
       subtitleOffset: source.subtitleOffset ?? undefined,
       renderedArtUrl: source.renderedArtUrl,
+      // Carousel photos carry no text: the rendered ones stay valid.
+      carouselSlides: source.carouselSlides ?? undefined,
+      renderedSlideUrls: source.renderedSlideUrls,
       selectedVideoId: source.selectedVideoId,
       videoTemplate: source.videoTemplate,
       renderedVideoUrl: source.renderedVideoUrl,
@@ -616,9 +672,14 @@ export async function editVersionManually(
  * Actually publishes to Instagram (photo or video) and reflects the result on
  * the post — used both by the manual approval (approveAndPublish) and by the
  * auto-publish when the review flow is turned off (see
- * AppSettings.reviewRequired).
+ * AppSettings.reviewRequired). `shareToStory` also sends the art/video to the
+ * story, after the feed post is out (see shareVersionToStory).
  */
-async function publishVersion(postId: string, version: PostVersion) {
+async function publishVersion(
+  postId: string,
+  version: PostVersion,
+  opts: { shareToStory?: boolean } = {},
+) {
   const isVideo = !!version.renderedVideoUrl;
   if (!version.renderedArtUrl && !version.renderedVideoUrl) {
     throw badRequest("The art/video has not been rendered for this version yet.");
@@ -635,9 +696,15 @@ async function publishVersion(postId: string, version: PostVersion) {
 
   try {
     const caption = version.instagramCaption ?? version.title ?? "";
+    const isCarousel = !isVideo && version.renderedSlideUrls.length > 0;
     const result = isVideo
       ? await publishVideoToInstagram(version.renderedVideoUrl!, caption)
-      : await publishToInstagram(version.renderedArtUrl!, caption);
+      : isCarousel
+        ? await publishCarouselToInstagram(
+            [version.renderedArtUrl!, ...version.renderedSlideUrls],
+            caption,
+          )
+        : await publishToInstagram(version.renderedArtUrl!, caption);
     await prisma.publication.update({
       where: { id: publication.id },
       data: {
@@ -665,6 +732,45 @@ async function publishVersion(postId: string, version: PostVersion) {
     });
     throw new ApiError(502, `Failed to publish: ${(err as Error).message}`);
   }
+
+  if (opts.shareToStory) await shareVersionToStory(version);
+}
+
+/**
+ * The story is an extra: the feed post is already out at this point, so a
+ * failure here does not roll anything back or fail the request — it is only
+ * recorded as a failed 'story' publication, which the review screen shows.
+ * Carousel: only the cover (the art with the text) goes to the story.
+ */
+async function shareVersionToStory(version: PostVersion): Promise<void> {
+  const publication = await prisma.publication.create({
+    data: {
+      postVersionId: version.id,
+      kind: PUBLICATION_KIND.STORY,
+      status: PUBLICATION_STATUS.PENDING,
+    },
+  });
+  try {
+    const result = await publishStoryToInstagram(
+      version.renderedVideoUrl
+        ? { videoUrl: version.renderedVideoUrl }
+        : { imageUrl: version.renderedArtUrl! },
+    );
+    await prisma.publication.update({
+      where: { id: publication.id },
+      data: {
+        status: PUBLICATION_STATUS.PUBLISHED,
+        instagramMediaId: result.mediaId,
+        instagramPostUrl: result.permalink ?? null,
+        publishedAt: new Date(),
+      },
+    });
+  } catch (err) {
+    await prisma.publication.update({
+      where: { id: publication.id },
+      data: { status: PUBLICATION_STATUS.FAILED, errorMessage: (err as Error).message },
+    });
+  }
 }
 
 // ── 5) Approve → publish to Instagram ────────────────────────
@@ -673,12 +779,14 @@ async function publishVersion(postId: string, version: PostVersion) {
  * away. Staff cannot approve their own story — only a peer's (peer review) —
  * and alone it does not publish: the vote is recorded and only when
  * PEER_APPROVALS_NEEDED distinct peers have approved this version does the
- * publication actually fire.
+ * publication actually fire. `shareToStory` comes from whoever gives the
+ * approval that actually publishes (the earlier peer votes do not carry it).
  */
 export async function approveAndPublish(
   user: CompanyUser,
   postId: string,
   versionId: string,
+  opts: { shareToStory?: boolean } = {},
 ) {
   const post = await prisma.post.findUnique({ where: { id: postId } });
   if (!post) throw notFound("Post not found.");
@@ -716,7 +824,7 @@ export async function approveAndPublish(
     });
   }
 
-  await publishVersion(postId, version);
+  await publishVersion(postId, version, opts);
   return getPostDetail(postId);
 }
 
@@ -807,6 +915,8 @@ export function listPosts(companyId: string, opts: { status?: string; mineFor?: 
           subtitle: true,
           renderedArtUrl: true,
           renderedVideoUrl: true,
+          // Carousel: the feed card is only the compact thumbnail — the cover
+          // (renderedArtUrl). The other photos are never read here.
           versionNumber: true,
           // Only the static frame — the feed card never needs to download the
           // whole rendered (heavy) video just to show a thumbnail.
@@ -854,6 +964,55 @@ export function listAuditLogs(companyId: string, limit = 50) {
     orderBy: { purgedAt: "desc" },
     take: limit,
   });
+}
+
+/**
+ * The story text is exactly the word "teste" (or "test") — nothing else, no
+ * link, no document. Strict on purpose: "teste de som na praça" is a real
+ * story and goes to the AI as usual; only the bare word skips it.
+ */
+function isTestSubmission(input: CreatePostInput): boolean {
+  if (input.url || input.document) return false;
+  const word = (input.text ?? "").trim().toLowerCase().replace(/[.!?…]+$/, "");
+  return word === "teste" || word === "test";
+}
+
+/**
+ * Post filled with neutral placeholder text, without calling the AI — for
+ * trying the flow (art, carousel, review) without spending tokens and without
+ * the model inventing a story out of a single word. No AI badge (aiProvider
+ * stays null) and no image suggestions.
+ */
+async function createTestPost(user: CompanyUser, input: CreatePostInput) {
+  const content = testPostContent[getContentLanguage()];
+  const credits = (input.credits ?? []).filter((c) => c.handle.trim());
+  const post = await prisma.post.create({
+    data: {
+      companyId: user.companyId,
+      createdBy: user.id,
+      sourceType: "text",
+      sourceText: null,
+      credits: credits.length ? credits : undefined,
+      status: POST_STATUS.EDITING_ART,
+      photos: input.photo
+        ? { create: [{ storageUrl: input.photo.storageUrl, orderIndex: 0 }] }
+        : undefined,
+    },
+    include: { photos: true },
+  });
+  await prisma.postVersion.create({
+    data: {
+      postId: post.id,
+      versionNumber: 1,
+      origin: "manual_edit",
+      title: content.title,
+      subtitle: content.subtitle,
+      instagramCaption: content.instagramCaption,
+      selectedPhotoId: post.photos[0]?.id ?? null,
+      editedBy: user.id,
+    },
+  });
+  return getPostDetail(post.id);
 }
 
 /** How many links of a single submission are read (each becomes up to ~8k chars in the prompt). */

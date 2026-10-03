@@ -8,13 +8,15 @@ interface Props {
   text: string;
   /** Where the field shows up in the final product (optional, highlighted). */
   where?: string;
+  /** Which edge of the "?" the popover lines up with — "right" for icons near the right edge of the screen. */
+  align?: "left" | "right";
 }
 
 /**
  * "?" icon that reveals an explanation. Works on hover (desktop) and on touch
  * (mobile) — hence click + hover, not just hover.
  */
-export function Tooltip({ text, where }: Props) {
+export function Tooltip({ text, where, align = "left" }: Props) {
   const { dict } = useLocale();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLSpanElement>(null);
@@ -50,7 +52,7 @@ export function Tooltip({ text, where }: Props) {
       {/* Opened by click (mobile) or by hover (desktop) */}
       <span
         role="tooltip"
-        className={`absolute left-0 top-7 z-40 w-64 max-w-[calc(100vw-2.5rem)] animate-fade-in
+        className={`absolute ${align === "right" ? "right-0" : "left-0"} top-7 z-40 w-64 max-w-[calc(100vw-2.5rem)] animate-fade-in
                     rounded-xl border border-line bg-elevated p-3 text-left shadow-soft
                     sm:w-72 ${open ? "block" : "hidden group-hover:block"}`}
       >

@@ -48,6 +48,30 @@ export const emailMessages: Record<
 };
 
 /**
+ * Placeholder content for a story sent as exactly "teste"/"test" (see
+ * isTestSubmission in services/posts.ts): fills the post without calling the
+ * AI, so the flow (art, review) can be tried without spending tokens and
+ * without the model inventing a story out of one word.
+ */
+export const testPostContent: Record<
+  Language,
+  { title: string; subtitle: string; instagramCaption: string }
+> = {
+  pt: {
+    title: "Título de exemplo para conferir a arte",
+    subtitle: "Subtítulo de exemplo, com o tamanho de uma linha de apoio de verdade",
+    instagramCaption:
+      "Legenda de exemplo para conferir o fluxo de publicação.\n\nEste parágrafo ocupa o lugar do texto da notícia e pode ser editado à vontade antes de publicar.",
+  },
+  en: {
+    title: "Sample title to check the art",
+    subtitle: "Sample subtitle, about as long as a real supporting line",
+    instagramCaption:
+      "Sample caption to check the publishing flow.\n\nThis paragraph stands in for the story text and can be edited freely before publishing.",
+  },
+};
+
+/**
  * API error messages are written in English in the code. For a Portuguese
  * interface they are translated here, by exact text, by prefix (messages
  * that end in a dynamic detail) or by pattern. Anything not listed stays in English.
@@ -109,7 +133,75 @@ const API_ERRORS_PT: Record<string, string> = {
   "The AI answer is incomplete (the title or the caption is missing). Try generating again.": "Resposta da IA incompleta (faltou o título ou a legenda). Tente gerar de novo.",
   "No AI provider configured (check the API keys in .env).": "Nenhum provedor de IA configurado (verifique as chaves de API no .env).",
   "Instagram is not configured: set IG_USER_ID and IG_ACCESS_TOKEN.": "Instagram não configurado: defina IG_USER_ID e IG_ACCESS_TOKEN.",
+  "The text is too short to write a story. Send at least one sentence about what happened, a link or a document.":
+    "O texto está curto demais para virar notícia. Envie pelo menos uma frase sobre o que aconteceu, um link ou um documento.",
+  "This story has no source text for the AI to rewrite. Edit the text by hand.":
+    "Esta pauta não tem texto de origem para a IA reescrever. Edite o texto à mão.",
+  "The same photo appears twice in the carousel.": "A mesma foto aparece duas vezes no carrossel.",
+  "Invalid carousel photo.": "Foto do carrossel inválida.",
+  "A carousel needs at least 2 images.": "Um carrossel precisa de pelo menos 2 imagens.",
 };
+
+/**
+ * The factual-fidelity rules (lib/language/{pt,en}/validate.ts) explained in
+ * plain words — whoever reads this error is a reporter, not a developer, so
+ * each item says what the AI wrote that is not in their text.
+ */
+const RULES_PT: Record<string, string> = {
+  'address formula "na altura de..."': 'usou a expressão "na altura de..." para indicar o local',
+  'address formula "at the height of..."': 'usou a expressão "na altura de..." para indicar o local',
+  'absence phrase ("não foi informado/divulgado")': 'escreveu que alguma informação "não foi divulgada", o que não acrescenta nada à notícia',
+  'absence phrase ("não há informações")': 'escreveu que "não há informações" sobre algo, o que não acrescenta nada à notícia',
+  'absence phrase ("was not disclosed/reported")': 'escreveu que alguma informação "não foi divulgada", o que não acrescenta nada à notícia',
+  'absence phrase ("no information is available")': 'escreveu que "não há informações" sobre algo, o que não acrescenta nada à notícia',
+  'person named ("identificado como...")': 'colocou o nome de uma pessoa envolvida ("identificado como..."), o que não deve ir para o post',
+  'person named ("identified as...")': 'colocou o nome de uma pessoa envolvida ("identificado como..."), o que não deve ir para o post',
+  "administrative report field turned into a sentence": "transformou um campo técnico do boletim de ocorrência em frase da notícia",
+  "invented image credit": "inventou um crédito de foto que você não informou",
+  "invented investigation": "disse que o caso está sendo investigado, mas o seu texto não fala disso",
+  "invented road interdiction": "disse que a via foi interditada, mas o seu texto não fala disso",
+  "invented road blockage": "disse que a via foi bloqueada, mas o seu texto não fala disso",
+  "invented road closure": "disse que a via foi interditada, mas o seu texto não fala disso",
+  "invented traffic detour": "falou em desvio no trânsito, mas o seu texto não fala disso",
+  "invented death": "falou em morte, mas o seu texto não fala disso",
+  'invented closing line "apurar as circunstâncias"': 'terminou com "a polícia vai apurar as circunstâncias", que não está no seu texto',
+  'invented closing line about "the circumstances"': 'terminou com "a polícia vai apurar as circunstâncias", que não está no seu texto',
+  "invented forensic examination": "falou em perícia, mas o seu texto não fala disso",
+};
+
+function explainRule(rule: string): string {
+  const weekday = rule.match(/^weekday "(.+)" not supported by the source$/);
+  if (weekday) {
+    return `escreveu "${weekday[1]}", mas esse dia da semana não aparece no seu texto`;
+  }
+  return RULES_PT[rule] ?? rule;
+}
+
+const FIDELITY_RE =
+  /^(?:(AI pipeline failed|AI rewrite failed): )?The AI kept violating factual-fidelity rules even after correction \((.+)\)\. Nothing was saved — try generating again or adjust the source\.$/s;
+
+/**
+ * The AI wrote something that is not in the reporter's text, twice in a row.
+ * The technical wrapper ("AI pipeline failed: …") is dropped: the reporter
+ * only needs what happened, that nothing was lost, and what to do next.
+ */
+function friendlyFidelityError(rules: string, isRewrite: boolean): string {
+  const reasons = rules.split("; ").map(explainRule);
+  const what =
+    reasons.length === 1
+      ? `A IA ${reasons[0]}.`
+      : `A IA escreveu coisas que não estão no seu texto:\n${reasons.map((r) => `• ${r[0].toUpperCase()}${r.slice(1)};`).join("\n")}`;
+  return (
+    `${what}\n\n` +
+    (isRewrite
+      ? "Para não publicar uma informação errada, o texto novo foi descartado — o post continua como estava.\n\n"
+      : "Para não publicar uma informação errada, esse texto foi descartado.\n\n") +
+    (isRewrite
+      ? "O que fazer: clique em “Tentar de novo” ou, se preferir, edite o texto à mão."
+      : "O que fazer: clique em “Tentar de novo”. Se essa informação for verdadeira, " +
+        "escreva ela no seu texto antes de enviar — assim a IA pode usá-la.")
+  );
+}
 const API_ERROR_PREFIXES_PT: [string, string][] = [
   ["Could not download the photo from Pexels", "Não foi possível baixar a foto do Pexels"],
   ["Pexels refused the download", "Pexels recusou o download"],
@@ -123,23 +215,72 @@ const API_ERROR_PREFIXES_PT: [string, string][] = [
   ["AI rewrite failed:", "Falha ao reescrever com IA:"],
   ["Could not access the link", "Não foi possível acessar o link"],
   ["All AI providers failed. Attempts:", "Todos os provedores de IA falharam. Tentativas:"],
-  ["The AI kept violating factual-fidelity rules even after correction", "A IA insistiu em violar regras de fidelidade factual mesmo após correção"],
+  ["The AI answered in an unexpected format. Start of the answer:", "A IA respondeu num formato inesperado. Início da resposta:"],
+  ["Error trying to publish the media on Instagram:", "Erro ao publicar a mídia no Instagram:"],
+  ["Error trying to create the media container on Instagram:", "Erro ao criar a mídia no Instagram:"],
+  ["Error trying to create a carousel item on Instagram:", "Erro ao criar um item do carrossel no Instagram:"],
+  ["Error trying to create the carousel container on Instagram:", "Erro ao criar o carrossel no Instagram:"],
+  ["Error trying to create the video container on Instagram:", "Erro ao criar o vídeo no Instagram:"],
   ["Action restricted to the roles:", "Ação restrita aos papéis:"],
 ];
 
-const API_ERROR_PATTERNS_PT: [RegExp, string][] = [
+const API_ERROR_PATTERNS_PT: [RegExp, string | ((...groups: string[]) => string)][] = [
   [/^Type (.+) to confirm\.$/, "Digite $1 pra confirmar."],
+  // Errors of one AI provider: "<provider>: <reason>".
+  [/^([\w:./-]+): timed out \(the model took too long to answer\)\.$/, "$1: tempo esgotado (o modelo demorou demais para responder)."],
+  [/^([\w:./-]+): connection failed \((.*)\)\.$/s, "$1: falha de conexão ($2)."],
+  [/^([\w:./-]+): response has no text content\.$/, "$1: a resposta veio sem texto."],
+  [/^Timed out waiting for Instagram to process (the image|the video)\.$/, (what) =>
+    `Tempo esgotado esperando o Instagram processar ${what === "the video" ? "o vídeo" : "a imagem"}.`],
 ];
 
+/**
+ * Translates an API error. Wrapped messages ("AI pipeline failed: <inner>",
+ * "All AI providers failed. Attempts:\n<provider>: <inner>") are translated
+ * all the way down — before, only the outer prefix came out in Portuguese and
+ * the actual reason stayed in English.
+ */
 export function translateApiMessage(message: string, locale: Locale): string {
   if (locale !== "pt") return message;
   const exact = API_ERRORS_PT[message];
   if (exact) return exact;
+  const fidelity = message.match(FIDELITY_RE);
+  if (fidelity) return friendlyFidelityError(fidelity[2], fidelity[1] === "AI rewrite failed");
   for (const [prefix, translated] of API_ERROR_PREFIXES_PT) {
-    if (message.startsWith(prefix)) return translated + message.slice(prefix.length);
+    if (message.startsWith(prefix)) {
+      const rest = message.slice(prefix.length);
+      const lead = rest.match(/^\s*/)?.[0] ?? "";
+      const inner = rest
+        .slice(lead.length)
+        .split("\n")
+        .map((line) => translateLine(line, locale))
+        .join("\n");
+      return translated + lead + inner;
+    }
+  }
+  return translateLine(message, locale, true);
+}
+
+/** One line: whole message, a pattern, or "<provider>: <message>". */
+function translateLine(line: string, locale: Locale, topLevel = false): string {
+  if (!topLevel) {
+    const viaTop = API_ERRORS_PT[line];
+    if (viaTop) return viaTop;
+    if (API_ERROR_PREFIXES_PT.some(([p]) => line.startsWith(p))) return translateApiMessage(line, locale);
   }
   for (const [pattern, template] of API_ERROR_PATTERNS_PT) {
-    if (pattern.test(message)) return message.replace(pattern, template);
+    const m = line.match(pattern);
+    if (m) {
+      return typeof template === "string"
+        ? line.replace(pattern, template)
+        : template(...m.slice(1));
+    }
   }
-  return message;
+  // "groq: <some known message>" inside the chain's list of attempts.
+  const provider = line.match(/^([\w:./-]+): (.+)$/s);
+  if (provider && !topLevel) {
+    const inner = translateLine(provider[2], locale);
+    if (inner !== provider[2]) return `${provider[1]}: ${inner}`;
+  }
+  return line;
 }

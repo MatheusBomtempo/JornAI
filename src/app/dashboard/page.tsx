@@ -146,6 +146,7 @@ export default async function DashboardPage({
                       ▶
                     </div>
                   ) : v?.renderedArtUrl ? (
+                    // Carousel included: only the cover goes in the feed card.
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={v.renderedArtUrl}

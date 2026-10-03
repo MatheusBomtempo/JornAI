@@ -131,6 +131,12 @@ export const postWorkspace = {
       confirmRejectButton: "Confirmar recusa",
       publishedMessage: "🎉 Post publicado no Instagram.",
       rejectedMessage: "Post recusado e arquivado.",
+      shareToStoryLabel: "Adicionar ao story também",
+      shareToStoryHint: "Depois do post, a arte vai para o story (em carrossel, só a capa).",
+      shareToStoryPeerHint:
+        "Vale se a sua aprovação for a que publica: a arte vai para o story também (em carrossel, só a capa).",
+      storyPublished: "Também foi para o story.",
+      storyFailed: "O post saiu, mas não deu para publicar no story:",
     },
     history: {
       heading: "Histórico",
@@ -288,6 +294,12 @@ export const postWorkspace = {
       confirmRejectButton: "Confirm rejection",
       publishedMessage: "🎉 Post published on Instagram.",
       rejectedMessage: "Post rejected and archived.",
+      shareToStoryLabel: "Add to story too",
+      shareToStoryHint: "After the post, the art goes to the story (carousel: cover only).",
+      shareToStoryPeerHint:
+        "Applies if your approval is the one that publishes: the art goes to the story too (carousel: cover only).",
+      storyPublished: "It went to the story too.",
+      storyFailed: "The post went out, but the story could not be published:",
     },
     history: {
       heading: "History",

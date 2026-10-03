@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { USER_ROLES, CREDIT_TYPES } from "./domain";
+import { USER_ROLES, CREDIT_TYPES, CAROUSEL_MAX } from "./domain";
 import {
   photoSlotSchema,
   textSlotSchema,
@@ -54,16 +54,32 @@ export const createPostSchema = z
     path: ["text"],
   });
 
-export const saveArtSchema = z.object({
-  selectedPhotoId: z.string().uuid(),
-  artTemplateId: z.string().uuid(),
-  photoTransform: photoTransformSchema,
-  title: z.string().max(TITLE_MAX).default(""),
-  subtitle: z.string().max(SUBTITLE_MAX).default(""),
-  // The title/subtitle position can be adjusted per post, without touching the template.
-  titleOffset: textOffsetSchema.optional(),
-  subtitleOffset: textOffsetSchema.optional(),
+/** One photo of the carousel after the cover: bare photo + its own pan/zoom. */
+export const carouselSlideSchema = z.object({
+  photoId: z.string().uuid(),
+  transform: photoTransformSchema,
 });
+
+export const saveArtSchema = z
+  .object({
+    selectedPhotoId: z.string().uuid(),
+    artTemplateId: z.string().uuid(),
+    photoTransform: photoTransformSchema,
+    title: z.string().max(TITLE_MAX).default(""),
+    subtitle: z.string().max(SUBTITLE_MAX).default(""),
+    // The title/subtitle position can be adjusted per post, without touching the template.
+    titleOffset: textOffsetSchema.optional(),
+    subtitleOffset: textOffsetSchema.optional(),
+    /** Carousel photos 2..N (the cover is selectedPhotoId). Empty = single image. */
+    carouselSlides: z.array(carouselSlideSchema).max(CAROUSEL_MAX - 1).default([]),
+  })
+  .refine(
+    (d) => {
+      const ids = [d.selectedPhotoId, ...d.carouselSlides.map((s) => s.photoId)];
+      return new Set(ids).size === ids.length;
+    },
+    { message: "The same photo appears twice in the carousel.", path: ["carouselSlides"] },
+  );
 
 export const regenerateSchema = z.object({
   guidance: z.string().optional(),
@@ -117,6 +133,11 @@ export const editVersionSchema = z
   .refine((d) => Object.values(d).some((v) => v !== undefined), {
     message: "Provide at least one field to edit.",
   });
+
+export const approveSchema = z.object({
+  /** Also share the art/video to the Instagram story once the post goes out. */
+  shareToStory: z.boolean().optional().default(false),
+});
 
 export const rejectSchema = z.object({
   reason: z.string().min(3, "Provide a reason for the rejection."),

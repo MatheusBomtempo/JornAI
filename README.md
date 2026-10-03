@@ -43,11 +43,30 @@ An open-source web tool that lets a newsroom publish breaking-news posts to Inst
 - Burns in an **animated title card** (slide + fade) in one of three styles, using your brand colors.
 - Fixes phone-recorded videos that arrive rotated.
 
-### 3 · Review and publish
+### 3 · More than one photo? Make it a carousel
 
-<img src="docs/screenshots/3-review.png" alt="Review step with an Instagram-style preview and the approve / request rewrite / reject actions" width="100%" />
+<img src="docs/screenshots/carousel.png" alt="Carousel section: the cover, a second photo and the reorder, frame and edit buttons" width="100%" />
 
-> **TL;DR:** see the post exactly as it will look on Instagram, then **Approve and publish**, **Request rewrite** (the AI writes a new version) or **Reject** with a reason. Every change is a new version, so the full history is kept.
+> **TL;DR:** add up to **10 photos** and the post becomes an Instagram carousel. The 1st photo is the cover, with the template, title and subtitle; the others go out as the bare photo, cropped to the same proportion (Instagram requires it). Reorder, swap the cover and frame each slide.
+
+### 4 · Edit the image without leaving the app
+
+<p align="center"><img src="docs/screenshots/photo-editor.png" alt="Image editor on the blur tab, with a face blurred" width="420" /></p>
+
+> **TL;DR:** every photo — cover or slide — has an **Edit image** popup, framed at the real proportion of the art:
+
+- **Blur image** — tap or drag over the photo to hide faces, plates or anything else (with undo). Handy for accident and police photos.
+- **Adjust** — zoom, straighten, rotate, mirror, and **blurred borders**: show the whole photo and fill the rest of the frame with a mirrored, blurred copy, the same look as the videos.
+- **Color** — brightness, contrast and saturation.
+
+### 5 · Review, publish — and add it to the story
+
+<img src="docs/screenshots/3-review-story.png" alt="Review step with the carousel preview, the Approve and publish button and the Add to story too checkbox" width="100%" />
+
+> **TL;DR:** see the post exactly as it will look on Instagram (carousels can be swiped), then **Approve and publish**, **Request rewrite** (the AI writes a new version) or **Reject** with a reason. Every change is a new version, so the full history is kept.
+
+- **Add to story too** — a checkbox under the approve button, **always unticked by default**. When ticked, once the feed post is out the art (carousel: cover only) or the rendered video is also published as an **Instagram story**.
+- If the story fails, the feed post stays up — the failure is recorded and the review screen says why.
 
 ---
 
@@ -89,18 +108,22 @@ Source (photo, text, link, or PDF)
 AI writes the copy (title, subtitle, caption)
         │
         ▼
-Reporter adjusts photo + text in a fixed template
+Reporter frames the photo(s) or video in the brand template
+(single photo, carousel of up to 10, or a 9:16 Reels video)
         │
         ▼
 Editor reviews → approve / reject / regenerate / edit
+(optional: "Add to story too")
         │
         ▼
-Publish to Instagram
+Publish to Instagram (feed / carousel / Reels, + story if ticked)
 ```
 
 - **AI only writes text** — it never generates or picks images. Photos are always real and chosen by a person.
 - Every AI generation (or manual edit) creates a **new version**, so nothing is overwritten and there is a full history.
-- Photo **and video** (Reels) posts, with an animated title card for video.
+- Photo, **carousel** (up to 10 photos) and **video** (Reels) posts, with an animated title card for video.
+- Built-in **image editor**: blur faces, blurred borders, rotate/straighten, color.
+- Optional **story** share on approval — always an explicit, per-post choice.
 - Peer review: a reporter's post can be approved by a manager/admin, or by two colleagues.
 - Multi-tenant: each company has its own feed, templates, style examples and settings.
 
@@ -130,7 +153,7 @@ The prompts themselves are written in English; only the examples and rules the m
 - **Next.js** (App Router) + **TypeScript**, **PostgreSQL** via **Prisma**
 - **Fabric.js** for the in-browser art editor, **Sharp** for the server-side final render, **ffmpeg** for video
 - AI: any OpenAI-compatible or Anthropic text provider (OpenRouter, Groq, Gemini, OpenAI, Claude), with automatic fallback across providers
-- Instagram Graph API for publishing; S3/R2-compatible storage (or local disk in dev)
+- Instagram Graph API for publishing (single image, carousel, Reels and stories); S3/R2-compatible storage (or local disk in dev)
 
 ## Roles
 
@@ -138,7 +161,7 @@ The prompts themselves are written in English; only the examples and rules the m
 |---|---|
 | **admin** | Everything — users, API keys, templates, style examples, approve/publish |
 | **manager** | Approve/reject/regenerate/edit/publish; manage templates and style examples |
-| **staff** (reporter) | Submit sources, edit own drafts before approval |
+| **staff** (reporter) | Submit sources, edit own drafts before approval; approve a colleague's post (two approvals publish it) |
 
 ## Getting started
 
@@ -198,7 +221,7 @@ The project deploys as a regular Next.js app (it is developed against Vercel + N
 
 - More language packs (Spanish, French, …)
 - More official-document profiles (the way police-report forms are cleaned today)
-- Stories and other social networks (deliberately out of scope for now)
+- Other social networks (deliberately out of scope for now)
 
 Not planned, on purpose: scheduling, AI image generation, and publishing without human approval.
 

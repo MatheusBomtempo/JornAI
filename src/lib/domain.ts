@@ -14,6 +14,12 @@ export type UserRole = (typeof USER_ROLES)[number];
  */
 export const PEER_APPROVALS_NEEDED = 2;
 
+/**
+ * Most images one Instagram carousel takes (Graph API limit) — the cover art
+ * included. Photos only: Reels/videos never go into a carousel here.
+ */
+export const CAROUSEL_MAX = 10;
+
 /** Estados do post (coluna posts.status). */
 export const POST_STATUS = {
   PROCESSING_AI: "processing_ai",
@@ -108,6 +114,11 @@ export const PUBLICATION_STATUS = {
 } as const;
 export type PublicationStatus =
   (typeof PUBLICATION_STATUS)[keyof typeof PUBLICATION_STATUS];
+
+export const PUBLICATION_KIND = {
+  FEED: "feed",
+  STORY: "story",
+} as const;
 
 /**
  * Allowed status transitions. Basis for validating state changes and for

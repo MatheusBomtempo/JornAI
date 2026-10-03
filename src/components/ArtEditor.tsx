@@ -1,12 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { apiPost } from "@/lib/api-client";
 import { type TextTransform } from "@/lib/text-case";
 import { textSlotSchema, type TextSlot } from "@/lib/render/slots";
 import { layoutText, type Font, type Weight } from "@/lib/render/text-svg";
 import { useLocale } from "./LocaleProvider";
 import { useActionOverlay } from "./ActionOverlay";
+import { PhotoEditButton, canvasUrl } from "./PhotoEditModal";
+import type { CarouselSlide } from "@/lib/carousel";
 
 interface Slot {
   x: number;
@@ -40,20 +42,6 @@ export interface EditorPhoto {
 
 type Offset = { offsetX: number; offsetY: number };
 type TextKind = "title" | "subtitle";
-
-/**
- * URL exclusive to the canvas (Fabric loads with crossOrigin "anonymous"). The
- * same image shows up on screen in plain <img> tags (template and photo
- * thumbnails), loaded WITHOUT CORS — and R2 does not send `Vary: Origin` on
- * that response, so the browser reused the non-CORS copy for the canvas and
- * blocked it. In production the editor opened with only the photo: no frame and
- * no title/subtitle (locally it does not show up: there everything is the same
- * origin). A query param becomes another cache entry; R2 ignores it and serves
- * the same file.
- */
-function canvasUrl(url: string): string {
-  return `${url}${url.includes("?") ? "&" : "?"}cors=1`;
-}
 
 // ── Text identical to the final art ──────────────────────────
 // The editor's title/subtitle uses the SAME vector layout as the server render
@@ -174,6 +162,26 @@ interface Props {
     subtitleOffset?: Offset | null;
   };
   onSaved?: () => void;
+  /**
+   * Carousel photos 2..N (the cover is this editor's photo). Sent with the
+   * save; undefined/empty = single-image post.
+   */
+  carouselSlides?: CarouselSlide[];
+  /**
+   * Carousel strip, rendered under the editor with the active template's size
+   * (`canvas`) and the size of its photo slot (`cover`: where photo 1 ends up).
+   */
+  renderCarousel?: (
+    canvas: { width: number; height: number },
+    cover: { width: number; height: number },
+  ) => ReactNode;
+  /**
+   * Receives the photo edited in the "Edit image" popup (already cropped to the
+   * slot's proportion). The workspace attaches it as a new photo and selects it.
+   */
+  onEditPhoto?: (file: File) => void | Promise<void>;
+  /** Tells the workspace what is typed/chosen, so a remount (new photo) does not lose it. */
+  onDraft?: (draft: { templateId: string; title: string; subtitle: string }) => void;
 }
 
 type Transform = { offsetX: number; offsetY: number; scale: number };
@@ -182,7 +190,17 @@ const ZERO_OFFSET: Offset = { offsetX: 0, offsetY: 0 };
 export const TITLE_MAX = 69;
 export const SUBTITLE_MAX = 149;
 
-export function ArtEditor({ postId, photos, templates, initial, onSaved }: Props) {
+export function ArtEditor({
+  postId,
+  photos,
+  templates,
+  initial,
+  onSaved,
+  carouselSlides,
+  renderCarousel,
+  onEditPhoto,
+  onDraft,
+}: Props) {
   const { dict } = useLocale();
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasEl = useRef<HTMLCanvasElement>(null);
@@ -223,6 +241,10 @@ export function ArtEditor({ postId, photos, templates, initial, onSaved }: Props
 
   const template = templates.find((t) => t.id === templateId);
   const photo = photos.find((p) => p.id === photoId) ?? photos[0];
+
+  useEffect(() => {
+    onDraft?.({ templateId, title, subtitle });
+  }, [onDraft, templateId, title, subtitle]);
 
   useEffect(() => {
     const el = wrapRef.current;
@@ -442,8 +464,12 @@ export function ArtEditor({ postId, photos, templates, initial, onSaved }: Props
       fx.current?.canvas?.dispose?.();
       fx.current = null;
     };
+    // photo?.id, not photoId: a photo just uploaded (e.g. a carousel cover
+    // swapped for its blurred copy) is only in `photos` after the refresh —
+    // until then `photo` falls back to photos[0], and the canvas must redraw
+    // once the real one arrives.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [photoId, templateId, displayW]);
+  }, [photo?.id, templateId, displayW]);
 
   // Live text in the preview (same layout as the final art, including the
   // shrink/"…" when it does not fit the slot).
@@ -498,14 +524,16 @@ export function ArtEditor({ postId, photos, templates, initial, onSaved }: Props
     setTextMoved(hasOffset(titleOffsetRef.current) || hasOffset(subtitleOffsetRef.current));
   }
 
+  const isCarousel = (carouselSlides?.length ?? 0) > 0;
+
   async function save() {
     if (!template || !photo) return;
     setSaving(true);
     // Loading/error/success go to the modal (ActionOverlay) — it survives this
     // editor's unmount when the post moves on to review.
     const result = await run({
-      title: dict.artEditor.savingButton,
-      success: dict.artEditor.doneMessage,
+      title: isCarousel ? dict.carousel.savingButton : dict.artEditor.savingButton,
+      success: isCarousel ? dict.carousel.doneMessage : dict.artEditor.doneMessage,
       fn: () =>
         apiPost(`/api/posts/${postId}/art`, {
           selectedPhotoId: photo.id,
@@ -515,6 +543,7 @@ export function ArtEditor({ postId, photos, templates, initial, onSaved }: Props
           subtitle: subtitle.slice(0, SUBTITLE_MAX),
           titleOffset: readTextOffset("title"),
           subtitleOffset: readTextOffset("subtitle"),
+          carouselSlides: carouselSlides ?? [],
         }),
     });
     setSaving(false);
@@ -534,6 +563,17 @@ export function ArtEditor({ postId, photos, templates, initial, onSaved }: Props
         {dict.artEditor.helper.suffix}
       </p>
 
+      {/* In carousel mode (even with only the cover so far) each photo, cover
+          included, has its own button in the carousel strip — this one would add
+          the edited copy as a new slide instead of replacing the cover. */}
+      {!renderCarousel && template && photo && onEditPhoto && (
+        <PhotoEditButton
+          photoUrl={photo.storageUrl}
+          frame={{ width: template.photoSlot.width, height: template.photoSlot.height }}
+          onApply={onEditPhoto}
+        />
+      )}
+
       <div className="card-soft p-3">
         <div className="mb-2 flex items-center justify-between">
           <label htmlFor="zoom" className="text-xs font-medium text-muted">{dict.artEditor.zoomLabel}</label>
@@ -545,6 +585,12 @@ export function ArtEditor({ postId, photos, templates, initial, onSaved }: Props
           className="h-2 w-full cursor-pointer appearance-none rounded-full bg-line accent-brand-500"
         />
       </div>
+
+      {template &&
+        renderCarousel?.(
+          { width: template.canvasWidth, height: template.canvasHeight },
+          { width: template.photoSlot.width, height: template.photoSlot.height },
+        )}
 
       {textMoved && (
         <button type="button" className="btn-ghost btn-sm w-full" onClick={() => {
@@ -618,7 +664,13 @@ export function ArtEditor({ postId, photos, templates, initial, onSaved }: Props
       )}
 
       <button onClick={save} className="btn-primary w-full" disabled={saving}>
-        {saving ? dict.artEditor.savingButton : dict.artEditor.saveButton}
+        {saving
+          ? isCarousel
+            ? dict.carousel.savingButton
+            : dict.artEditor.savingButton
+          : isCarousel
+            ? dict.carousel.saveButton.replace("{count}", String((carouselSlides?.length ?? 0) + 1))
+            : dict.artEditor.saveButton}
       </button>
     </div>
   );

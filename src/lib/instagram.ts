@@ -116,6 +116,64 @@ export async function publishToInstagram(
   return { creationId, mediaId, permalink };
 }
 
+// ── Carousel ─────────────────────────────────────────────────
+/**
+ * Carousel publishing (Graph API): one container per image flagged
+ * `is_carousel_item` (no caption), then a parent CAROUSEL container listing
+ * the children (the caption goes here), and finally the usual publish. The
+ * first URL is the cover — Instagram keeps the order given in `children`.
+ */
+async function createCarouselItemContainer(imageUrl: string): Promise<string> {
+  const { userId, token } = assertConfigured();
+  const res = await fetch(`${baseUrl()}/${userId}/media`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ image_url: imageUrl, is_carousel_item: true, access_token: token }),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.id) {
+    throw new Error(igError("create a carousel item", data));
+  }
+  return data.id as string;
+}
+
+export async function publishCarouselToInstagram(
+  imageUrls: string[],
+  caption: string,
+): Promise<PublishResult> {
+  const { userId, token } = assertConfigured();
+  if (imageUrls.length < 2) throw new Error("A carousel needs at least 2 images.");
+
+  // Sequential on purpose: keeps the order obvious in the logs and stays far
+  // from Meta's rate limit; 10 photos are a few seconds anyway.
+  const children: string[] = [];
+  for (const url of imageUrls) {
+    const id = await createCarouselItemContainer(url);
+    await waitForContainerReady(id, token, "image");
+    children.push(id);
+  }
+
+  const res = await fetch(`${baseUrl()}/${userId}/media`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      media_type: "CAROUSEL",
+      children: children.join(","),
+      caption,
+      access_token: token,
+    }),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.id) {
+    throw new Error(igError("create the carousel container", data));
+  }
+  const creationId = data.id as string;
+  await waitForContainerReady(creationId, token, "image");
+  const mediaId = await publishMediaContainer(creationId);
+  const permalink = await fetchPermalink(mediaId);
+  return { creationId, mediaId, permalink };
+}
+
 // ── Video (Reels) ────────────────────────────────────────────
 /**
  * Video publishing is asynchronous on Meta's side: it creates the container
@@ -188,6 +246,37 @@ export async function publishVideoToInstagram(
   const { token } = assertConfigured();
   const creationId = await createVideoMediaContainer(videoUrl, caption);
   await waitForContainerReady(creationId, token, "video");
+  const mediaId = await publishMediaContainer(creationId);
+  const permalink = await fetchPermalink(mediaId);
+  return { creationId, mediaId, permalink };
+}
+
+// ── Story ────────────────────────────────────────────────────
+/**
+ * Story publishing: same container + publish flow, with media_type=STORIES.
+ * Stories take no caption. The 4:5/1:1 art is not 9:16 — Instagram fits it on
+ * a background by itself, so the feed art goes as is.
+ */
+export async function publishStoryToInstagram(
+  media: { imageUrl: string } | { videoUrl: string },
+): Promise<PublishResult> {
+  const { userId, token } = assertConfigured();
+  const isVideo = "videoUrl" in media;
+  const res = await fetch(`${baseUrl()}/${userId}/media`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      media_type: "STORIES",
+      ...(isVideo ? { video_url: media.videoUrl } : { image_url: media.imageUrl }),
+      access_token: token,
+    }),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.id) {
+    throw new Error(igError("create the story container", data));
+  }
+  const creationId = data.id as string;
+  await waitForContainerReady(creationId, token, isVideo ? "video" : "image");
   const mediaId = await publishMediaContainer(creationId);
   const permalink = await fetchPermalink(mediaId);
   return { creationId, mediaId, permalink };

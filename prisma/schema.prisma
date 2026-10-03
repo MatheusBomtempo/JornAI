@@ -262,6 +262,16 @@ model PostVersion {
    * the frames) — THIS is the one that goes to Instagram, never the original.
    */
   renderedVideoUrl String?  @map("rendered_video_url")
+  /**
+   * Carousel: photos 2..N, in order — [{ photoId, transform: { offsetX,
+   * offsetY, scale } }]. Only the cover (selectedPhotoId + template) carries
+   * the template and text; these go out as the bare photo, cropped to the
+   * cover's proportion (Instagram requires the same one for every item).
+   * Null/empty = a regular single-image post.
+   */
+  carouselSlides   Json?    @map("carousel_slides")
+  /** Rendered JPEGs of carouselSlides, same order — published after the cover art. */
+  renderedSlideUrls String[] @default([]) @map("rendered_slide_urls")
   editedBy         String?  @map("edited_by") @db.Uuid
   createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
@@ -296,6 +306,8 @@ model ReviewDecision {
 model Publication {
   id               String    @id @default(uuid()) @db.Uuid
   postVersionId    String    @map("post_version_id") @db.Uuid
+  /** 'feed' (the post itself) | 'story' (optional extra share, ticked on the review screen). */
+  kind             String    @default("feed")
   instagramMediaId String?   @map("instagram_media_id")
   instagramPostUrl String?   @map("instagram_post_url")
   status           String // 'pending' | 'container_created' | 'published' | 'failed'
