@@ -27,6 +27,8 @@ import type {
 } from "../validation";
 import { Prisma, type User, type PostVersion } from "@prisma/client";
 import type { CompactResult } from "../compact";
+import { testPostContent } from "../i18n/server-messages";
+import { getContentLanguage } from "../language/config";
 
 type CreatePostInput = z.infer<typeof createPostSchema>;
 type SaveArtInput = z.infer<typeof saveArtSchema>;
@@ -71,6 +73,8 @@ function assertSameCompany(postCompanyId: string, userCompanyId: string): void {
 
 // ── 1) Create post + AI pipeline (text only) ─────────────────
 export async function createPostWithAi(user: CompanyUser, input: CreatePostInput) {
+  if (isTestSubmission(input)) return createTestPost(user, input);
+
   // Links pasted in the middle of the text are sources too: without this,
   // "link1 link2" (or link + note) went to the AI as a bare URL with no
   // content read — it ended up writing about only one of them (or from the
@@ -108,6 +112,13 @@ export async function createPostWithAi(user: CompanyUser, input: CreatePostInput
   const firstFailure = scrapes.find((r) => r.status === "rejected");
   if (urls.length && !support.length && !sourceText && !input.document && firstFailure) {
     throw (firstFailure as PromiseRejectedResult).reason;
+  }
+  // A couple of loose words with no link or document ("oi", "acidente"): there
+  // is nothing for the AI to work from, and it would invent the whole story.
+  if (!urls.length && !input.document && !sourceText) {
+    throw badRequest(
+      "The text is too short to write a story. Send at least one sentence about what happened, a link or a document.",
+    );
   }
   if (!sourceText && titles.length) sourceText = titles.join("\n");
   if (input.document) {
@@ -440,6 +451,11 @@ export async function regeneratePost(
   // also ask for a rewrite on another staff member's story.
   if (!canEditPost(user, post) && !canReviewPost(user, post)) {
     throw forbidden("You are not allowed to redo this.");
+  }
+
+  // A test post ("teste") has no source at all — the AI would invent everything.
+  if (!post.sourceText && !post.scrapedContent && !post.sourceUrl) {
+    throw badRequest("This story has no source text for the AI to rewrite. Edit the text by hand.");
   }
 
   const prev = await latestVersion(postId);
@@ -894,6 +910,55 @@ export function listAuditLogs(companyId: string, limit = 50) {
     orderBy: { purgedAt: "desc" },
     take: limit,
   });
+}
+
+/**
+ * The story text is exactly the word "teste" (or "test") — nothing else, no
+ * link, no document. Strict on purpose: "teste de som na praça" is a real
+ * story and goes to the AI as usual; only the bare word skips it.
+ */
+function isTestSubmission(input: CreatePostInput): boolean {
+  if (input.url || input.document) return false;
+  const word = (input.text ?? "").trim().toLowerCase().replace(/[.!?…]+$/, "");
+  return word === "teste" || word === "test";
+}
+
+/**
+ * Post filled with neutral placeholder text, without calling the AI — for
+ * trying the flow (art, carousel, review) without spending tokens and without
+ * the model inventing a story out of a single word. No AI badge (aiProvider
+ * stays null) and no image suggestions.
+ */
+async function createTestPost(user: CompanyUser, input: CreatePostInput) {
+  const content = testPostContent[getContentLanguage()];
+  const credits = (input.credits ?? []).filter((c) => c.handle.trim());
+  const post = await prisma.post.create({
+    data: {
+      companyId: user.companyId,
+      createdBy: user.id,
+      sourceType: "text",
+      sourceText: null,
+      credits: credits.length ? credits : undefined,
+      status: POST_STATUS.EDITING_ART,
+      photos: input.photo
+        ? { create: [{ storageUrl: input.photo.storageUrl, orderIndex: 0 }] }
+        : undefined,
+    },
+    include: { photos: true },
+  });
+  await prisma.postVersion.create({
+    data: {
+      postId: post.id,
+      versionNumber: 1,
+      origin: "manual_edit",
+      title: content.title,
+      subtitle: content.subtitle,
+      instagramCaption: content.instagramCaption,
+      selectedPhotoId: post.photos[0]?.id ?? null,
+      editedBy: user.id,
+    },
+  });
+  return getPostDetail(post.id);
 }
 
 /** How many links of a single submission are read (each becomes up to ~8k chars in the prompt). */
