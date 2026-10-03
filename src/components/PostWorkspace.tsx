@@ -208,6 +208,12 @@ export function PostWorkspace({ user, post, templates, company }: Props) {
   // is a new photo — so the draft is handed back as `initial` to not lose it.
   const draftRef = useRef<{ templateId: string; title: string; subtitle: string } | null>(null);
   const [carry, setCarry] = useState<{ templateId: string; title: string; subtitle: string } | null>(null);
+  // A new version (AI rewrite, text edited by hand) brings its own title and
+  // subtitle — an unsaved draft from before it must not override them.
+  useEffect(() => {
+    setCarry(null);
+    draftRef.current = null;
+  }, [current?.id]);
   const rememberDraft = useCallback(
     (draft: { templateId: string; title: string; subtitle: string }) => {
       draftRef.current = draft;

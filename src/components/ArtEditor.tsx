@@ -563,7 +563,10 @@ export function ArtEditor({
         {dict.artEditor.helper.suffix}
       </p>
 
-      {!isCarousel && template && photo && onEditPhoto && (
+      {/* In carousel mode (even with only the cover so far) each photo, cover
+          included, has its own button in the carousel strip — this one would add
+          the edited copy as a new slide instead of replacing the cover. */}
+      {!renderCarousel && template && photo && onEditPhoto && (
         <PhotoEditButton
           photoUrl={photo.storageUrl}
           frame={{ width: template.photoSlot.width, height: template.photoSlot.height }}
