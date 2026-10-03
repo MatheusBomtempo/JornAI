@@ -11,18 +11,70 @@ Source (photo, text, link, or PDF)
 AI writes the copy (title, subtitle, caption)
         │
         ▼
-Reporter adjusts photo + text in a fixed template
+Reporter frames the photo(s) or video in the brand template
+(single photo, carousel of up to 10, or a 9:16 Reels video)
         │
         ▼
-Editor reviews → approve / reject / regenerate / edit
+Review → approve / reject / request a rewrite
+(optionally: "Add to story too")
         │
         ▼
-Publish to Instagram
+Publish to Instagram (feed / carousel / Reels, + story if ticked)
 ```
 
 - **AI only writes text** — it never generates or picks images. Photos are always real and chosen by a person.
 - Every AI generation (or manual edit) creates a **new version**, so nothing is overwritten and there's a full history.
 - Nothing reaches Instagram without a human approving it first.
+
+### 1. Send what you have
+
+Paste a text, one or more links, or a PDF with selectable text, add credits, and the AI writes the art title (≤ 69 chars), subtitle (≤ 149) and the Instagram caption.
+
+![New story screen](src/assets/landing/new-story.png)
+
+### 2. Frame the photo — or build a carousel
+
+Drag and zoom the photo inside the company's template; drag the title and subtitle to reposition them for this post only.
+
+![Art editor with the photo framed on the brand template](src/assets/landing/media.png)
+
+Add more photos and it becomes a **carousel** (up to 10): the 1st photo is the cover with the template and text, the others go out as the bare photo, cropped to the same proportion (Instagram requires it). Reorder, swap the cover and frame each slide.
+
+![Carousel section: cover, second photo and the reorder / frame / edit buttons](src/assets/landing/carousel.png)
+
+### 3. Edit the image without leaving the app
+
+Every photo (cover or slide) has an **Edit image** popup:
+
+- **Blur image** — tap or drag over the photo to hide faces, plates or anything else, with undo.
+- **Adjust** — zoom, straighten, rotate, mirror, and *blurred borders* (show the whole photo and fill the rest of the frame with a mirrored, blurred copy, like the videos do).
+- **Color** — brightness, contrast and saturation.
+
+The frame in the popup is the real proportion of the art, so what you see is what gets published.
+
+<p align="center"><img src="src/assets/landing/photo-editor.png" alt="Image editor on the blur tab, with a face blurred" width="420"></p>
+
+### 4. Review, decide — and add it to the story
+
+The review screen shows the post exactly as it will look on Instagram (carousels can be swiped). Then:
+
+- **Approve and publish** — it goes to Instagram. Managers/admins publish in one click; a reporter can't approve their own story, and peer approvals publish once 2 other reporters approve.
+- **Add to story too** — a checkbox under the approve button, **always unticked by default**. When ticked, after the feed post goes out the art (carousel: cover only) or the rendered video is also published as an Instagram story. If the story fails, the feed post stays up and the review screen shows why.
+- **Request rewrite** (optionally guiding the AI) or **Reject** with a reason.
+
+![Review screen with the carousel preview and the "Add to story too" checkbox](src/assets/landing/review-story.png)
+
+### 5. Video and Reels
+
+Upload an MP4, MOV or WebM (up to 100 MB) and JornAI renders a 1080×1920 Reels with an animated title card and the company logo — landscape videos are shown whole over a blurred background, and the editor shows the Reels UI safe zones.
+
+![Video editor with the 9:16 preview and Reels safe zones](src/assets/landing/video-editor.png)
+
+### 6. Follow everything in the feed
+
+Every story and its status in one place; approve or reject right from the card. Old posts clean themselves up (published after 2 days, in review or failed after 3) and leave a minimal audit record.
+
+![Story feed](src/assets/landing/feed.png)
 
 ## Why
 
@@ -42,7 +94,8 @@ Feeding a police report or an official PDF straight into an LLM is a good way to
 - **Next.js** (App Router) + **TypeScript**, **PostgreSQL** via **Prisma**
 - **Fabric.js** for the in-browser art editor, **Sharp** for server-side final render
 - AI: any OpenAI-compatible or Anthropic-compatible text provider (OpenRouter, Groq, Gemini, OpenAI, Claude), with automatic fallback across providers
-- Instagram Graph API for publishing
+- **FFmpeg** for the Reels render (animated title burned into the video)
+- Instagram Graph API for publishing — single image, carousel, Reels and stories
 
 ## Working language
 
@@ -61,7 +114,9 @@ The prompts themselves are written in English; only the examples and rules the m
 |---|---|
 | **admin** | Everything — users, API keys, templates, style examples, approve/publish |
 | **manager** | Approve/reject/regenerate/edit/publish; manage templates and style examples |
-| **staff** (reporter) | Submit sources, edit own drafts before approval |
+| **staff** (reporter) | Submit sources, edit own drafts before approval; approve a peer's story (2 peer approvals publish it) |
+
+Review can also be turned off per company in the admin settings — then a post publishes as soon as its art is saved (never to the story in that case; the story is always an explicit choice on the review screen).
 
 ## Getting started
 

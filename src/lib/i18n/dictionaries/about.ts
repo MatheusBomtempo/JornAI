@@ -34,6 +34,7 @@ export const about = {
         points: [
           "Arraste e dê zoom na foto; arraste o título e o subtítulo para reposicionar.",
           "Título com até 69 caracteres, subtítulo com até 149.",
+          "Mais de uma foto? Vira carrossel: a capa leva o template, as outras vão limpas.",
           "Vídeo também: ele é ajustado para 9:16 e ganha um título animado.",
         ],
         alt: "Editor com a foto enquadrada no template da marca",
@@ -43,10 +44,11 @@ export const about = {
         tldr: "Veja o post exatamente como vai ficar no Instagram e decida.",
         points: [
           "Aprovar e publicar: vai para o Instagram.",
+          "Marque “Adicionar ao story também” para a arte ir para o story junto (vem sempre desmarcado).",
           "Pedir reescrita: a IA gera uma nova versão do texto.",
           "Recusar: o post é arquivado com um motivo.",
         ],
-        alt: "Tela de revisão com a prévia no estilo Instagram",
+        alt: "Tela de revisão com a prévia do carrossel e a opção de adicionar ao story",
       },
       {
         title: "Acompanhe no feed",
@@ -59,6 +61,30 @@ export const about = {
         alt: "Feed de pautas com posts em revisão",
       },
     ],
+    photoKicker: "Carrossel, edição e story",
+    photoTitle: "Várias fotos, rostos protegidos, story junto.",
+    photoLead:
+      "Monte um carrossel de até 10 fotos, edite cada imagem sem sair do JornAI e, na hora de publicar, mande a arte para o story também.",
+    photoFeatures: [
+      {
+        title: "Carrossel de até 10 fotos",
+        text: "A 1ª foto é a capa, com o template, o título e o subtítulo; as outras saem como a foto pura, na mesma proporção. Reordene, troque a capa e enquadre cada uma.",
+      },
+      {
+        title: "Desfoque rostos",
+        text: "Na aba “Borrar imagem”, toque ou arraste sobre a foto para esconder rostos, placas ou o que precisar. Dá para desfazer.",
+      },
+      {
+        title: "Ajustes e cor",
+        text: "Zoom, endireitar, girar, espelhar, brilho, contraste e saturação — e as bordas borradas, que mostram a foto inteira, como nos vídeos.",
+      },
+      {
+        title: "Story com um clique",
+        text: "Na revisão, marque “Adicionar ao story também”. Depois do post, a arte (no carrossel, só a capa) ou o vídeo vai para o story. Se o story falhar, o post continua no ar e a tela mostra o motivo.",
+      },
+    ],
+    carouselAlt: "Seção de carrossel com a capa, a segunda foto e os botões de reordenar, enquadrar e editar",
+    photoEditorAlt: "Editor de imagem na aba de desfoque, com o rosto da pessoa desfocado",
     videoKicker: "Vídeo e Reels",
     videoTitle: "Tem vídeo? Também sai com a cara da marca.",
     videoLead:
@@ -170,6 +196,7 @@ export const about = {
         points: [
           "Drag and zoom the photo; drag the title and subtitle to move them.",
           "Title up to 69 characters, subtitle up to 149.",
+          "More than one photo? It becomes a carousel: the cover gets the template, the rest go out bare.",
           "Video works too: it's fitted to 9:16 and gets an animated title.",
         ],
         alt: "Editor with the photo framed on the brand template",
@@ -179,10 +206,11 @@ export const about = {
         tldr: "See the post exactly as it will look on Instagram, then decide.",
         points: [
           "Approve and publish: it goes to Instagram.",
+          "Tick “Add to story too” to send the art to the story as well (it always starts unticked).",
           "Request rewrite: the AI writes a new version of the text.",
           "Reject: the post is archived with a reason.",
         ],
-        alt: "Review screen with the Instagram-style preview",
+        alt: "Review screen with the carousel preview and the add-to-story option",
       },
       {
         title: "Follow it in the feed",
@@ -195,6 +223,30 @@ export const about = {
         alt: "Story feed with posts in review",
       },
     ],
+    photoKicker: "Carousel, editing and story",
+    photoTitle: "Several photos, faces protected, story included.",
+    photoLead:
+      "Build a carousel of up to 10 photos, edit each image without leaving JornAI and, when you publish, send the art to the story too.",
+    photoFeatures: [
+      {
+        title: "Carousels of up to 10 photos",
+        text: "The 1st photo is the cover, with the template, title and subtitle; the others go out as the bare photo, in the same proportion. Reorder, swap the cover and frame each one.",
+      },
+      {
+        title: "Blur faces",
+        text: "In the “Blur image” tab, tap or drag over the photo to hide faces, plates or anything else. You can undo it.",
+      },
+      {
+        title: "Adjustments and color",
+        text: "Zoom, straighten, rotate, mirror, brightness, contrast and saturation — plus blurred borders, which show the whole photo, like in the videos.",
+      },
+      {
+        title: "Story in one click",
+        text: "On review, tick “Add to story too”. After the post, the art (carousel: cover only) or the video goes to the story. If the story fails, the post stays up and the screen shows why.",
+      },
+    ],
+    carouselAlt: "Carousel section with the cover, the second photo and the reorder, frame and edit buttons",
+    photoEditorAlt: "Image editor on the blur tab, with the person's face blurred",
     videoKicker: "Video and Reels",
     videoTitle: "Got a video? It comes out on brand too.",
     videoLead:

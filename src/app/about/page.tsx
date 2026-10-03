@@ -9,11 +9,13 @@ import { BlobBackground } from "@/components/BlobBackground";
 import { GitHubMark } from "@/components/GitHubMark";
 import newStoryShot from "@/assets/landing/new-story.png";
 import mediaShot from "@/assets/landing/media.png";
-import reviewShot from "@/assets/landing/review.png";
+import reviewShot from "@/assets/landing/review-story.png";
 import feedShot from "@/assets/landing/feed.png";
 import templateShot from "@/assets/landing/template-builder.png";
 import adminTabsShot from "@/assets/landing/admin-tabs.png";
 import videoShot from "@/assets/landing/video-editor.png";
+import carouselShot from "@/assets/landing/carousel.png";
+import photoEditorShot from "@/assets/landing/photo-editor.png";
 
 /**
  * /about — plain-language guide to how the system works. Follows the
@@ -129,6 +131,35 @@ export default async function AboutPage() {
                   <ScreenshotFrame image={STEP_SHOTS[i]} alt={s.alt} priority={i === 0} />
                 </div>
               </article>
+            ))}
+          </div>
+        </section>
+
+        {/* Carousel, photo editing and story */}
+        <section id="carousel" className="mx-auto max-w-6xl scroll-mt-24 px-4 py-16">
+          <div className="text-center">
+            <p className="font-mono text-xs uppercase tracking-[0.18em] text-faint">
+              {t.photoKicker}
+            </p>
+            <h2 className="mx-auto mt-3 max-w-3xl text-balance text-3xl font-semibold tracking-tight md:text-5xl">
+              {t.photoTitle}
+            </h2>
+            <p className="mx-auto mt-4 max-w-2xl text-balance text-base leading-relaxed text-muted md:text-lg">
+              {t.photoLead}
+            </p>
+          </div>
+          <div className="mt-12 grid items-center gap-6 md:grid-cols-[3fr_2fr]">
+            <ScreenshotFrame image={carouselShot} alt={t.carouselAlt} />
+            <div className="mx-auto w-full max-w-sm">
+              <ScreenshotFrame image={photoEditorShot} alt={t.photoEditorAlt} />
+            </div>
+          </div>
+          <div className="mt-10 grid gap-4 sm:grid-cols-2">
+            {t.photoFeatures.map((f) => (
+              <div key={f.title} className="card p-6">
+                <h3 className="text-lg font-semibold">{f.title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-muted">{f.text}</p>
+              </div>
             ))}
           </div>
         </section>

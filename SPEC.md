@@ -173,6 +173,8 @@ POST   /posts/:id/regenerate           → new AI cycle (new version, same photo
 PATCH  /posts/:id/versions/:vid        → manual text edit
 
 POST   /posts/:id/versions/:vid/approve → triggers publishing to Instagram
+                                          body (optional): { shareToStory?: boolean } — also posts
+                                          the art/video to the story (publications.kind = 'story')
 POST   /posts/:id/versions/:vid/reject  → decision = rejected + mandatory reason
 
 GET    /posts / /posts/:id             → listing and detail (with versions and decisions)
