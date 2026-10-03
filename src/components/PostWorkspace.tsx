@@ -8,6 +8,7 @@ import { ArtEditor, type EditorTemplate, type EditorPhoto } from "./ArtEditor";
 import { VideoEditor, type EditorVideo } from "./VideoEditor";
 import { InstagramPreview, CarouselTrack } from "./InstagramPreview";
 import { CarouselManager } from "./CarouselManager";
+import { PhotoEditButton } from "./PhotoEditModal";
 import { StatusBadge } from "./StatusBadge";
 import { Stepper } from "./Stepper";
 import { BusyLabel, useElapsedSeconds } from "./Spinner";
@@ -201,6 +202,18 @@ export function PostWorkspace({ user, post, templates, company }: Props) {
   const [photoDragging, setPhotoDragging] = useState(false);
   const [lastAddedPhotoId, setLastAddedPhotoId] = useState<string | null>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
+
+  // What is typed/chosen in the art editor (title, subtitle, format), unsaved. The editor
+  // remounts when its photo changes — and the edited copy from the "Edit image" popup
+  // is a new photo — so the draft is handed back as `initial` to not lose it.
+  const draftRef = useRef<{ templateId: string; title: string; subtitle: string } | null>(null);
+  const [carry, setCarry] = useState<{ templateId: string; title: string; subtitle: string } | null>(null);
+  const rememberDraft = useCallback(
+    (draft: { templateId: string; title: string; subtitle: string }) => {
+      draftRef.current = draft;
+    },
+    [],
+  );
 
   // Wires the XHR bytes to the modal bar: "42% · 12.4 MB of 29.8 MB".
   const uploadProgress = useCallback(
@@ -419,7 +432,8 @@ export function PostWorkspace({ user, post, templates, company }: Props) {
   /**
    * Puts an edited copy (e.g. blurred faces) in place of a carousel photo:
    * uploads it as a new photo — the original stays in the post untouched — and
-   * swaps the id in the same position, keeping that photo's framing.
+   * swaps the id in the same position, with the framing reset (the copy already
+   * comes cropped to the carousel's proportion).
    */
   const replaceCarouselPhoto = useCallback(
     async (photoId: string, file: File) => {
@@ -434,7 +448,10 @@ export function PostWorkspace({ user, post, templates, company }: Props) {
         prev
           ? {
               coverId: prev.coverId === photoId ? newId : prev.coverId,
-              slides: prev.slides.map((s) => (s.photoId === photoId ? { ...s, photoId: newId } : s)),
+              // The edited copy is already cropped to the carousel's proportion, so it starts centered.
+              slides: prev.slides.map((s) =>
+                s.photoId === photoId ? { photoId: newId, transform: DEFAULT_SLIDE_TRANSFORM } : s,
+              ),
             }
           : prev,
       );
@@ -841,9 +858,14 @@ export function PostWorkspace({ user, post, templates, company }: Props) {
                 photos={post.photos}
                 templates={templates}
                 carouselSlides={carousel?.slides}
+                onDraft={rememberDraft}
+                onEditPhoto={async (file) => {
+                  setCarry(draftRef.current);
+                  await addPhoto(file);
+                }}
                 renderCarousel={
                   carousel
-                    ? (canvas) => (
+                    ? (canvas, coverSlot) => (
                         <CarouselManager
                           cover={post.photos.find((p) => p.id === carousel.coverId)}
                           slides={carousel.slides}
@@ -855,23 +877,36 @@ export function PostWorkspace({ user, post, templates, company }: Props) {
                           onAddPhotos={openCarouselPicker}
                           onExit={exitCarousel}
                           onReplacePhoto={replaceCarouselPhoto}
+                          editAction={(photo, replace) => (
+                            <PhotoEditButton
+                              photoUrl={photo.storageUrl}
+                              // The cover sits in the template's photo slot; the other slides fill the whole canvas.
+                              frame={photo.id === carousel.coverId ? coverSlot : canvas}
+                              disabled={carouselBusy}
+                              onApply={(file) => {
+                                setCarry(draftRef.current);
+                                return replace(file);
+                              }}
+                            />
+                          )}
                         />
                       )
                     : undefined
                 }
                 initial={{
                   selectedPhotoId: coverPhotoId,
-                  artTemplateId: current?.artTemplateId,
+                  artTemplateId: carry?.templateId ?? current?.artTemplateId,
                   photoTransform:
                     coverPhotoId && coverPhotoId === current?.selectedPhotoId
                       ? current?.photoTransform
                       : null,
-                  title: current?.title,
-                  subtitle: current?.subtitle,
+                  title: carry?.title ?? current?.title,
+                  subtitle: carry?.subtitle ?? current?.subtitle,
                   titleOffset: current?.titleOffset,
                   subtitleOffset: current?.subtitleOffset,
                 }}
                 onSaved={() => {
+                  setCarry(null);
                   setStepOverride(null);
                   router.refresh();
                 }}

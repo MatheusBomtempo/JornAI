@@ -7,6 +7,7 @@ import { textSlotSchema, type TextSlot } from "@/lib/render/slots";
 import { layoutText, type Font, type Weight } from "@/lib/render/text-svg";
 import { useLocale } from "./LocaleProvider";
 import { useActionOverlay } from "./ActionOverlay";
+import { PhotoEditButton, canvasUrl } from "./PhotoEditModal";
 import type { CarouselSlide } from "@/lib/carousel";
 
 interface Slot {
@@ -41,20 +42,6 @@ export interface EditorPhoto {
 
 type Offset = { offsetX: number; offsetY: number };
 type TextKind = "title" | "subtitle";
-
-/**
- * URL exclusive to the canvas (Fabric loads with crossOrigin "anonymous"). The
- * same image shows up on screen in plain <img> tags (template and photo
- * thumbnails), loaded WITHOUT CORS — and R2 does not send `Vary: Origin` on
- * that response, so the browser reused the non-CORS copy for the canvas and
- * blocked it. In production the editor opened with only the photo: no frame and
- * no title/subtitle (locally it does not show up: there everything is the same
- * origin). A query param becomes another cache entry; R2 ignores it and serves
- * the same file.
- */
-function canvasUrl(url: string): string {
-  return `${url}${url.includes("?") ? "&" : "?"}cors=1`;
-}
 
 // ── Text identical to the final art ──────────────────────────
 // The editor's title/subtitle uses the SAME vector layout as the server render
@@ -180,8 +167,21 @@ interface Props {
    * save; undefined/empty = single-image post.
    */
   carouselSlides?: CarouselSlide[];
-  /** Carousel strip, rendered under the editor with the active template's size. */
-  renderCarousel?: (canvas: { width: number; height: number }) => ReactNode;
+  /**
+   * Carousel strip, rendered under the editor with the active template's size
+   * (`canvas`) and the size of its photo slot (`cover`: where photo 1 ends up).
+   */
+  renderCarousel?: (
+    canvas: { width: number; height: number },
+    cover: { width: number; height: number },
+  ) => ReactNode;
+  /**
+   * Receives the photo edited in the "Edit image" popup (already cropped to the
+   * slot's proportion). The workspace attaches it as a new photo and selects it.
+   */
+  onEditPhoto?: (file: File) => void | Promise<void>;
+  /** Tells the workspace what is typed/chosen, so a remount (new photo) does not lose it. */
+  onDraft?: (draft: { templateId: string; title: string; subtitle: string }) => void;
 }
 
 type Transform = { offsetX: number; offsetY: number; scale: number };
@@ -198,6 +198,8 @@ export function ArtEditor({
   onSaved,
   carouselSlides,
   renderCarousel,
+  onEditPhoto,
+  onDraft,
 }: Props) {
   const { dict } = useLocale();
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -239,6 +241,10 @@ export function ArtEditor({
 
   const template = templates.find((t) => t.id === templateId);
   const photo = photos.find((p) => p.id === photoId) ?? photos[0];
+
+  useEffect(() => {
+    onDraft?.({ templateId, title, subtitle });
+  }, [onDraft, templateId, title, subtitle]);
 
   useEffect(() => {
     const el = wrapRef.current;
@@ -557,6 +563,14 @@ export function ArtEditor({
         {dict.artEditor.helper.suffix}
       </p>
 
+      {!isCarousel && template && photo && onEditPhoto && (
+        <PhotoEditButton
+          photoUrl={photo.storageUrl}
+          frame={{ width: template.photoSlot.width, height: template.photoSlot.height }}
+          onApply={onEditPhoto}
+        />
+      )}
+
       <div className="card-soft p-3">
         <div className="mb-2 flex items-center justify-between">
           <label htmlFor="zoom" className="text-xs font-medium text-muted">{dict.artEditor.zoomLabel}</label>
@@ -569,7 +583,11 @@ export function ArtEditor({
         />
       </div>
 
-      {template && renderCarousel?.({ width: template.canvasWidth, height: template.canvasHeight })}
+      {template &&
+        renderCarousel?.(
+          { width: template.canvasWidth, height: template.canvasHeight },
+          { width: template.photoSlot.width, height: template.photoSlot.height },
+        )}
 
       {textMoved && (
         <button type="button" className="btn-ghost btn-sm w-full" onClick={() => {
