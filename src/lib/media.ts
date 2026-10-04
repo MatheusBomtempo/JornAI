@@ -1,6 +1,11 @@
 import "server-only";
 import sharp from "sharp";
 
+/** File extension for an accepted video MIME type ("video/quicktime" → "mov", not "quicktime"). */
+export function videoExtension(contentType: string): string {
+  return { "video/mp4": "mp4", "video/quicktime": "mov", "video/webm": "webm" }[contentType] ?? "mp4";
+}
+
 /** The final art never exceeds ~1080-1350px on a side — leaves headroom without overdoing it. */
 export const PHOTO_MAX_DIMENSION = 1600;
 

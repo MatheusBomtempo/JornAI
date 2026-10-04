@@ -3,6 +3,7 @@ import { z } from "zod";
 import { randomUUID } from "node:crypto";
 import { requireUser } from "@/lib/auth";
 import { presignPut } from "@/lib/storage";
+import { videoExtension } from "@/lib/media";
 import { badRequest, ok, route } from "@/lib/http";
 
 const ALLOWED_VIDEO = new Set(["video/mp4", "video/quicktime", "video/webm"]);
@@ -30,8 +31,7 @@ export const POST = route(async (req: NextRequest) => {
     throw badRequest("Unsupported format (use MP4, MOV or WebM).");
   }
 
-  const ext = contentType.split("/")[1] ?? "mp4";
-  const key = `sources/${new Date().getFullYear()}/${randomUUID()}.${ext}`;
+  const key = `sources/${new Date().getFullYear()}/${randomUUID()}.${videoExtension(contentType)}`;
   const presigned = await presignPut(key, contentType);
 
   return ok(presigned ?? { uploadUrl: null });

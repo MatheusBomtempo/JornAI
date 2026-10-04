@@ -1,6 +1,6 @@
 import "server-only";
 import bcrypt from "bcryptjs";
-import { randomBytes, createHash } from "node:crypto";
+import { randomBytes, randomInt, createHash } from "node:crypto";
 import { cookies } from "next/headers";
 import { prisma } from "./db";
 import { env } from "./env";
@@ -86,13 +86,15 @@ export async function requireCompanyUser(): Promise<User & { companyId: string }
 
 /**
  * Temporary password for a new login or a reset done by admin/manager (see
- * /users routes) — pattern: a word + 2 digits (e.g. "success57", the word
+ * /users routes) — pattern: a word + 4 digits (e.g. "success5713", the word
  * comes from the language pack), easy to pass on verbally/by email; the person
- * changes it on first access (see /api/auth/change-password).
+ * changes it on first access (see /api/auth/change-password). Four digits, not
+ * two: with only 100 combinations the login throttle (5 failures / 15 min)
+ * would still let anyone guess it within a few hours.
  */
 export function generateTempPassword(): string {
-  const digits = randomBytes(1)[0] % 100;
-  return `${getLanguagePack().tempPasswordWord}${digits.toString().padStart(2, "0")}`;
+  const digits = randomInt(0, 10_000);
+  return `${getLanguagePack().tempPasswordWord}${digits.toString().padStart(4, "0")}`;
 }
 
 // ── API keys ─────────────────────────────────────────────────

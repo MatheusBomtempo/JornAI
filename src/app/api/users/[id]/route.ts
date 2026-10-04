@@ -7,7 +7,9 @@ import { forbidden, notFound, ok, route } from "@/lib/http";
 import type { Prisma } from "@prisma/client";
 
 // PATCH /users/:id — manager/admin update role/status/password. A manager
-// cannot promote anyone to admin — only admin touches admin.
+// cannot promote anyone to admin — only admin touches admin: otherwise a
+// manager could set an admin's password and sign in as them. Nobody can
+// deactivate or demote themselves (the company could end up with no admin).
 export const PATCH = route(
   async (req: NextRequest, ctx: { params: Promise<{ id: string }> }) => {
     const actor = await requireCompanyUser();
@@ -19,9 +21,21 @@ export const PATCH = route(
       throw forbidden("A manager cannot promote anyone to admin.");
     }
 
-    const target = await prisma.user.findUnique({ where: { id }, select: { companyId: true } });
+    const target = await prisma.user.findUnique({
+      where: { id },
+      select: { companyId: true, role: true },
+    });
     if (!target || target.companyId !== actor.companyId) {
       throw notFound("User not found.");
+    }
+    if (actor.role === "manager" && target.role === "admin") {
+      throw forbidden("A manager cannot change an admin's account.");
+    }
+    if (
+      actor.id === id &&
+      (data.active === false || (data.role !== undefined && data.role !== actor.role))
+    ) {
+      throw forbidden("You cannot deactivate or change the role of your own account.");
     }
 
     const update: Prisma.UserUpdateInput = {};

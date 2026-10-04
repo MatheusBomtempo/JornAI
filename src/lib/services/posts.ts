@@ -36,6 +36,7 @@ import { Prisma, type User, type PostVersion } from "@prisma/client";
 import type { CompactResult } from "../compact";
 import { testPostContent } from "../i18n/server-messages";
 import { getContentLanguage } from "../language/config";
+import { assertStorageUrl } from "../storage";
 
 type CreatePostInput = z.infer<typeof createPostSchema>;
 type SaveArtInput = z.infer<typeof saveArtSchema>;
@@ -80,6 +81,7 @@ function assertSameCompany(postCompanyId: string, userCompanyId: string): void {
 
 // ── 1) Create post + AI pipeline (text only) ─────────────────
 export async function createPostWithAi(user: CompanyUser, input: CreatePostInput) {
+  if (input.photo) assertStorageUrl(input.photo.storageUrl);
   if (isTestSubmission(input)) return createTestPost(user, input);
 
   // Links pasted in the middle of the text are sources too: without this,
@@ -118,7 +120,9 @@ export async function createPostWithAi(user: CompanyUser, input: CreatePostInput
   // link's), instead of sending the AI to write about a bare URL.
   const firstFailure = scrapes.find((r) => r.status === "rejected");
   if (urls.length && !support.length && !sourceText && !input.document && firstFailure) {
-    throw (firstFailure as PromiseRejectedResult).reason;
+    // 400 (not 500): an unreachable link is the reporter's input, and as an
+    // ApiError the message goes through the translation table.
+    throw badRequest(((firstFailure as PromiseRejectedResult).reason as Error).message);
   }
   // A couple of loose words with no link or document ("oi", "acidente"): there
   // is nothing for the AI to work from, and it would invent the whole story.
@@ -382,6 +386,7 @@ export async function addPhotoToPost(
   if (!post) throw notFound("Post not found.");
   assertSameCompany(post.companyId, user.companyId);
   if (!canEditPost(user, post)) throw forbidden("You cannot edit this post.");
+  assertStorageUrl(input.storageUrl);
 
   const photo = await prisma.postPhoto.create({
     data: {
@@ -407,6 +412,7 @@ export async function addVideoToPost(
   if (!post) throw notFound("Post not found.");
   assertSameCompany(post.companyId, user.companyId);
   if (!canEditPost(user, post)) throw forbidden("You cannot edit this post.");
+  assertStorageUrl(input.storageUrl);
 
   // Middle frame already in the final framing (9:16): it is the background of
   // the preview in the editor, and the probe says how much the 9:16 crop will
@@ -668,6 +674,9 @@ export async function editVersionManually(
   return { post: await getPostDetail(postId), versionId: version.id };
 }
 
+/** Longer than the longest publish route (maxDuration 290s) — see publishVersion. */
+const STALE_PUBLISHING_MS = 10 * 60 * 1000;
+
 /**
  * Actually publishes to Instagram (photo or video) and reflects the result on
  * the post — used both by the manual approval (approveAndPublish) and by the
@@ -685,10 +694,22 @@ async function publishVersion(
     throw badRequest("The art/video has not been rendered for this version yet.");
   }
 
-  await prisma.post.update({
-    where: { id: postId },
+  // Atomic claim: two approvals landing together (double click, two managers,
+  // the 2nd peer vote racing another) would otherwise both publish — the same
+  // story twice on Instagram. Only the request that flips the status goes on.
+  // A claim older than any function can live (killed by a timeout) is stale
+  // and can be taken over, so the post never gets stuck in "publishing".
+  const claimed = await prisma.post.updateMany({
+    where: {
+      id: postId,
+      OR: [
+        { status: { not: POST_STATUS.PUBLISHING } },
+        { updatedAt: { lt: new Date(Date.now() - STALE_PUBLISHING_MS) } },
+      ],
+    },
     data: { status: POST_STATUS.PUBLISHING },
   });
+  if (claimed.count === 0) throw conflict("This post is already being published.");
 
   const publication = await prisma.publication.create({
     data: { postVersionId: version.id, status: PUBLICATION_STATUS.PENDING },
@@ -792,6 +813,7 @@ export async function approveAndPublish(
   if (!post) throw notFound("Post not found.");
   assertSameCompany(post.companyId, user.companyId);
   if (!canReviewPost(user, post)) throw forbidden("You cannot review this post.");
+  if (post.status === POST_STATUS.PUBLISHED) throw conflict("This post has already been published.");
 
   const version = await prisma.postVersion.findUnique({
     where: { id: versionId },

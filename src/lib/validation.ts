@@ -172,7 +172,8 @@ export const artTemplateSchema = z.object({
 // email (never typed by whoever creates the account) — see /api/users POST.
 export const createUserSchema = z.object({
   name: z.string().min(1),
-  email: z.string().email(),
+  // Same normalization as the login — "Ana@X.com" and "ana@x.com" are one account.
+  email: z.string().trim().toLowerCase().email(),
   role: z.enum(USER_ROLES).default("staff"),
 });
 

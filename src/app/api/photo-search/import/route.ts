@@ -25,7 +25,7 @@ export const POST = route(async (req: NextRequest) => {
   try {
     res = await fetch(url, { signal: controller.signal });
   } catch (err) {
-    const why = (err as Error).name === "AbortError" ? "tempo esgotado" : (err as Error).message;
+    const why = (err as Error).name === "AbortError" ? "timed out" : (err as Error).message;
     throw badRequest(`Could not download the photo from Pexels (${why}).`);
   } finally {
     clearTimeout(timeout);
@@ -37,6 +37,10 @@ export const POST = route(async (req: NextRequest) => {
     throw badRequest("The Pexels link did not return an image.");
   }
 
+  // Checks the declared size first, so an oversized file is refused before it is buffered.
+  if (Number(res.headers.get("content-length") ?? 0) > MAX_DOWNLOAD_BYTES) {
+    throw badRequest("The Pexels image is larger than expected.");
+  }
   const raw = Buffer.from(await res.arrayBuffer());
   if (raw.byteLength > MAX_DOWNLOAD_BYTES) {
     throw badRequest("The Pexels image is larger than expected.");

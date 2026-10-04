@@ -3,6 +3,7 @@ import { requireUser, requireCompanyUser, setSessionCookie } from "@/lib/auth";
 import { requireRole } from "@/lib/rbac";
 import { createCompanySchema, updateCompanySchema } from "@/lib/validation";
 import { createCompanyForUser, getCompany, updateCompany } from "@/lib/services/company";
+import { assertStorageUrl } from "@/lib/storage";
 import { created, ok, route } from "@/lib/http";
 
 // GET /companies — data of the logged-in user's company (Admin → Company).
@@ -20,6 +21,7 @@ export const POST = route(async (req: NextRequest) => {
   const user = await requireUser();
   requireRole(user, "admin");
   const input = createCompanySchema.parse(await req.json());
+  if (input.logoUrl) assertStorageUrl(input.logoUrl);
 
   const { company, user: updatedUser } = await createCompanyForUser(user, input);
   await setSessionCookie(updatedUser);
@@ -32,6 +34,7 @@ export const PATCH = route(async (req: NextRequest) => {
   const user = await requireCompanyUser();
   requireRole(user, "admin");
   const input = updateCompanySchema.parse(await req.json());
+  if (input.logoUrl) assertStorageUrl(input.logoUrl);
   const company = await updateCompany(user.companyId, input);
   return ok({ company });
 });

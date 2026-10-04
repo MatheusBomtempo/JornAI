@@ -6,7 +6,7 @@ import { ok, route } from "@/lib/http";
 
 /**
  * POST /auth/change-password — the logged-in user changes their own password
- * (e.g. after signing in with the temporary password "successNN"). It zeroes
+ * (e.g. after signing in with the temporary password "successNNNN"). It zeroes
  * passwordResetAt: that is what makes the change suggestion vanish from the app.
  */
 export const POST = route(async (req: NextRequest) => {

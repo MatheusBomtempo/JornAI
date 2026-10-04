@@ -2,7 +2,7 @@ import { type NextRequest } from "next/server";
 import { randomUUID } from "node:crypto";
 import { requireUser } from "@/lib/auth";
 import { putObject } from "@/lib/storage";
-import { compressSourcePhoto } from "@/lib/media";
+import { compressSourcePhoto, videoExtension } from "@/lib/media";
 import { badRequest, created, route } from "@/lib/http";
 
 const MAX_BYTES = 15 * 1024 * 1024; // 15 MB, before compressing
@@ -42,8 +42,7 @@ export const POST = route(async (req: NextRequest) => {
     }
     if (file.size > MAX_VIDEO_BYTES) throw badRequest("File larger than 100 MB.");
     const raw = Buffer.from(await file.arrayBuffer());
-    const ext = file.type.split("/")[1] ?? "mp4";
-    const key = `sources/${new Date().getFullYear()}/${randomUUID()}.${ext}`;
+    const key = `sources/${new Date().getFullYear()}/${randomUUID()}.${videoExtension(file.type)}`;
     const { url } = await putObject(key, raw, file.type);
     return created({ url, key });
   }
