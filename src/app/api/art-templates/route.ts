@@ -3,6 +3,7 @@ import { requireCompanyUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { artTemplateSchema } from "@/lib/validation";
 import { sortTemplatesByFormat } from "@/lib/domain";
+import { assertStorageUrl } from "@/lib/storage";
 import { created, ok, route } from "@/lib/http";
 
 // GET /art-templates — available templates (only active ones by default), 4:5 first
@@ -22,6 +23,7 @@ export const GET = route(async (req: NextRequest) => {
 export const POST = route(async (req: NextRequest) => {
   const user = await requireCompanyUser();
   const data = artTemplateSchema.parse(await req.json());
+  assertStorageUrl(data.overlayAssetUrl);
 
   const template = await prisma.artTemplate.create({
     data: {

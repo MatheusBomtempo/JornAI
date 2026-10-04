@@ -1,7 +1,8 @@
 import "server-only";
 import bcrypt from "bcryptjs";
-import { randomBytes, createHash } from "node:crypto";
+import { randomBytes, randomInt, createHash } from "node:crypto";
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { prisma } from "./db";
 import { env } from "./env";
 import { unauthorized } from "./http";
@@ -33,6 +34,7 @@ export async function setSessionCookie(user: User): Promise<void> {
     email: user.email,
     role: user.role,
     companyId: user.companyId,
+    ver: user.sessionVersion,
   });
   const store = await cookies();
   store.set(SESSION_COOKIE, token, {
@@ -55,12 +57,33 @@ export async function getSession(): Promise<SessionPayload | null> {
   return verifySession(store.get(SESSION_COOKIE)?.value);
 }
 
-/** Loads the logged-in user from the session + database. */
+/**
+ * Loads the logged-in user from the session + database. A session signed
+ * before the last password change is rejected (sessionVersion mismatch) —
+ * that is what signs out the other devices after a change or a reset.
+ */
 export async function getCurrentUser(): Promise<User | null> {
   const session = await getSession();
   if (!session?.sub) return null;
   const user = await prisma.user.findUnique({ where: { id: session.sub } });
   if (!user || !user.active) return null;
+  if ((session.ver ?? 0) !== user.sessionVersion) return null;
+  return user;
+}
+
+/** Where a page sends a dead session: clears the cookie, then /login (see /api/auth/signout). */
+export const SIGNOUT_PATH = "/api/auth/signout";
+
+/**
+ * For server pages. The middleware only checks the JWT signature (no database
+ * on the edge), so a cookie of a deactivated user or from before a password
+ * change still gets through it. Pages cannot delete cookies, and sending
+ * straight to /login would loop (the middleware bounces a signed cookie away
+ * from /login) — so it goes through the route handler that clears it.
+ */
+export async function requirePageUser(): Promise<User> {
+  const user = await getCurrentUser();
+  if (!user) redirect(SIGNOUT_PATH);
   return user;
 }
 
@@ -86,13 +109,15 @@ export async function requireCompanyUser(): Promise<User & { companyId: string }
 
 /**
  * Temporary password for a new login or a reset done by admin/manager (see
- * /users routes) — pattern: a word + 2 digits (e.g. "success57", the word
+ * /users routes) — pattern: a word + 4 digits (e.g. "success5713", the word
  * comes from the language pack), easy to pass on verbally/by email; the person
- * changes it on first access (see /api/auth/change-password).
+ * changes it on first access (see /api/auth/change-password). Four digits, not
+ * two: with only 100 combinations the login throttle (5 failures / 15 min)
+ * would still let anyone guess it within a few hours.
  */
 export function generateTempPassword(): string {
-  const digits = randomBytes(1)[0] % 100;
-  return `${getLanguagePack().tempPasswordWord}${digits.toString().padStart(2, "0")}`;
+  const digits = randomInt(0, 10_000);
+  return `${getLanguagePack().tempPasswordWord}${digits.toString().padStart(4, "0")}`;
 }
 
 // ── API keys ─────────────────────────────────────────────────

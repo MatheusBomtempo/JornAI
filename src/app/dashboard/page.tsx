@@ -1,5 +1,6 @@
+import { redirect } from "next/navigation";
 import Link from "next/link";
-import { getCurrentUser } from "@/lib/auth";
+import { requirePageUser } from "@/lib/auth";
 import { listPosts, listAuditLogs } from "@/lib/services/posts";
 import { maybeCleanupExpiredPosts } from "@/lib/services/retention";
 import { AppShell } from "@/components/AppShell";
@@ -16,8 +17,8 @@ export default async function DashboardPage({
 }: {
   searchParams: Promise<{ status?: string }>;
 }) {
-  const user = await getCurrentUser();
-  if (!user || !user.companyId) return null;
+  const user = await requirePageUser();
+  if (!user.companyId) redirect("/onboarding");
 
   const { locale, dict } = await getServerDictionary();
   const dateLocale = locale === "pt" ? "pt-BR" : "en-US";

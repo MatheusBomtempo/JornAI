@@ -3,7 +3,7 @@ import { requireCompanyUser, generateTempPassword, hashPassword } from "@/lib/au
 import { requireRole } from "@/lib/rbac";
 import { sendCredentialsEmail } from "@/lib/email";
 import { prisma } from "@/lib/db";
-import { badRequest, notFound, ok, route } from "@/lib/http";
+import { badRequest, forbidden, notFound, ok, route } from "@/lib/http";
 
 /**
  * POST /users/:id/reset-password — manager/admin generate a new password for
@@ -20,10 +20,14 @@ export const POST = route(
 
     const target = await prisma.user.findUnique({
       where: { id },
-      select: { id: true, name: true, email: true, companyId: true },
+      select: { id: true, name: true, email: true, companyId: true, role: true },
     });
     if (!target || target.companyId !== actor.companyId) {
       throw notFound("User not found.");
+    }
+    // Same rule as PATCH /users/:id — only admin touches admin.
+    if (actor.role === "manager" && target.role === "admin") {
+      throw forbidden("A manager cannot change an admin's account.");
     }
 
     const tempPassword = generateTempPassword();
@@ -50,6 +54,8 @@ export const POST = route(
       data: {
         passwordHash: await hashPassword(tempPassword),
         passwordResetAt,
+        // Whoever held the old password (or a stolen cookie) is signed out.
+        sessionVersion: { increment: 1 },
       },
     });
 

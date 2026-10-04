@@ -1,5 +1,5 @@
-import { notFound } from "next/navigation";
-import { getCurrentUser } from "@/lib/auth";
+import { notFound, redirect } from "next/navigation";
+import { requirePageUser } from "@/lib/auth";
 import { getPostDetail } from "@/lib/services/posts";
 import { prisma } from "@/lib/db";
 import { AppShell } from "@/components/AppShell";
@@ -15,8 +15,8 @@ export default async function PostPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const user = await getCurrentUser();
-  if (!user || !user.companyId) return null;
+  const user = await requirePageUser();
+  if (!user.companyId) redirect("/onboarding");
 
   const { id } = await params;
   const post = await getPostDetail(id);

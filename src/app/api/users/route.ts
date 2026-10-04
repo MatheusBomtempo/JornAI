@@ -28,7 +28,7 @@ export const GET = route(async () => {
 
 // POST /users — manager/admin create a user. A manager only creates
 // manager/staff — only admin promotes admin (explicit request from the product
-// owner). The temporary password ("successNN") is always generated on the
+// owner). The temporary password ("successNNNN") is always generated on the
 // server and sent by email (automatic login) — whoever creates the account
 // never types or sees the password. The person swaps it for their own after
 // signing in (see /api/auth/change-password).
@@ -41,7 +41,9 @@ export const POST = route(async (req: NextRequest) => {
     throw forbidden("A manager can only create manager or reporter accounts.");
   }
 
-  const exists = await prisma.user.findUnique({ where: { email: data.email } });
+  const exists = await prisma.user.findFirst({
+    where: { email: { equals: data.email, mode: "insensitive" } },
+  });
   if (exists) throw conflict("A user with this email already exists.");
 
   const tempPassword = generateTempPassword();

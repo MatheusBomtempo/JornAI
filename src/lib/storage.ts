@@ -2,6 +2,7 @@ import "server-only";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { env } from "./env";
+import { badRequest } from "./http";
 
 /**
  * Media storage abstraction. The final art has to end up at a public HTTPS URL
@@ -157,6 +158,17 @@ class S3Storage implements StorageBackend {
   }
 }
 
+/**
+ * Keys always look like "sources/2026/<uuid>.jpg". Anything else (an encoded
+ * character, a query string, "..") is not one of ours — and on LocalStorage a
+ * ".." would escape public/uploads (deleteObjectByUrl would unlink any file).
+ */
+const SAFE_KEY_RE = /^[A-Za-z0-9_-][A-Za-z0-9._-]*(\/[A-Za-z0-9_-][A-Za-z0-9._-]*)*$/;
+
+function isSafeKey(key: string): boolean {
+  return SAFE_KEY_RE.test(key);
+}
+
 let backend: StorageBackend | null = null;
 
 export function getStorage(): StorageBackend {
@@ -179,11 +191,28 @@ export function presignPut(key: string, contentType: string): Promise<PresignedP
   return getStorage().presignPut(key, contentType);
 }
 
+/** True when the URL is an object of the configured storage (uploaded through JornAI itself). */
+export function isStorageUrl(url: string): boolean {
+  const key = getStorage().keyFromUrl(url);
+  return key !== null && isSafeKey(key);
+}
+
+/**
+ * Media URLs arrive from the client (photo, video, overlay, logo) and the
+ * server downloads them later to render — accepting any URL would let a
+ * logged-in user point the render at internal addresses (SSRF). Every one of
+ * them is produced by /api/upload, the presign or the Pexels import, so they
+ * all live in our storage.
+ */
+export function assertStorageUrl(url: string): void {
+  if (!isStorageUrl(url)) throw badRequest("Upload the file through JornAI before using it.");
+}
+
 /** Deletes the object behind a public URL stored in the database. Does not throw if the URL does not belong to the configured backend — it only warns (e.g. left over from a provider migration). */
 export async function deleteObjectByUrl(url: string): Promise<void> {
   const storage = getStorage();
   const key = storage.keyFromUrl(url);
-  if (!key) {
+  if (!key || !isSafeKey(key)) {
     console.warn(`[JornAI] URL is outside the configured storage, ignoring: ${url}`);
     return;
   }

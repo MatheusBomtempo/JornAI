@@ -7,7 +7,7 @@ import { useLocale } from "./LocaleProvider";
 
 /**
  * Suggestion (does not block) for whoever is still on the temporary password
- * "successNN" to swap it for their own. It goes away when the change is made
+ * "successNNNN" to swap it for their own. It goes away when the change is made
  * (passwordResetAt zeroes) or if the person dismisses it in this session.
  */
 export function ChangePasswordBanner() {
