@@ -54,6 +54,8 @@ export const POST = route(
       data: {
         passwordHash: await hashPassword(tempPassword),
         passwordResetAt,
+        // Whoever held the old password (or a stolen cookie) is signed out.
+        sessionVersion: { increment: 1 },
       },
     });
 

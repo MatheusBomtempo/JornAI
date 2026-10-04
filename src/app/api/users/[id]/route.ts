@@ -1,5 +1,5 @@
 import { type NextRequest } from "next/server";
-import { requireCompanyUser, hashPassword } from "@/lib/auth";
+import { requireCompanyUser, hashPassword, setSessionCookie } from "@/lib/auth";
 import { requireRole } from "@/lib/rbac";
 import { prisma } from "@/lib/db";
 import { updateUserSchema } from "@/lib/validation";
@@ -44,13 +44,15 @@ export const PATCH = route(
     if (data.active !== undefined) update.active = data.active;
     if (data.password !== undefined) {
       update.passwordHash = await hashPassword(data.password);
+      // Signs out every session of that user (see getCurrentUser).
+      update.sessionVersion = { increment: 1 };
     }
 
-    const user = await prisma.user.update({
-      where: { id },
-      data: update,
-      select: { id: true, name: true, email: true, role: true, active: true },
-    });
-    return ok({ user });
+    const updated = await prisma.user.update({ where: { id }, data: update });
+    // Changed their own password here: keep this device signed in.
+    if (data.password !== undefined && actor.id === id) await setSessionCookie(updated);
+
+    const { name, email, role, active } = updated;
+    return ok({ user: { id, name, email, role, active } });
   },
 );

@@ -1,4 +1,4 @@
-import { getCurrentUser } from "@/lib/auth";
+import { requirePageUser } from "@/lib/auth";
 import { AppShell } from "@/components/AppShell";
 import { CaptureForm } from "@/components/CaptureForm";
 import { Stepper } from "@/components/Stepper";
@@ -7,8 +7,7 @@ import { getServerDictionary } from "@/lib/i18n/server";
 export const dynamic = "force-dynamic";
 
 export default async function CapturePage() {
-  const user = await getCurrentUser();
-  if (!user) return null;
+  const user = await requirePageUser();
 
   const { dict } = await getServerDictionary();
 

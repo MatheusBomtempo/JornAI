@@ -63,6 +63,8 @@ model User {
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   /** Last time an admin/manager reset the password and sent it by email. */
   passwordResetAt DateTime? @map("password_reset_at") @db.Timestamptz(6)
+  /** Bumped on every password change — invalidates the sessions signed before it. */
+  sessionVersion  Int       @default(0) @map("session_version")
   /** Null only before onboarding (freshly created admin, no company yet). */
   companyId    String?  @map("company_id") @db.Uuid
 

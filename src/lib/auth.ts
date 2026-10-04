@@ -2,6 +2,7 @@ import "server-only";
 import bcrypt from "bcryptjs";
 import { randomBytes, randomInt, createHash } from "node:crypto";
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { prisma } from "./db";
 import { env } from "./env";
 import { unauthorized } from "./http";
@@ -33,6 +34,7 @@ export async function setSessionCookie(user: User): Promise<void> {
     email: user.email,
     role: user.role,
     companyId: user.companyId,
+    ver: user.sessionVersion,
   });
   const store = await cookies();
   store.set(SESSION_COOKIE, token, {
@@ -55,12 +57,33 @@ export async function getSession(): Promise<SessionPayload | null> {
   return verifySession(store.get(SESSION_COOKIE)?.value);
 }
 
-/** Loads the logged-in user from the session + database. */
+/**
+ * Loads the logged-in user from the session + database. A session signed
+ * before the last password change is rejected (sessionVersion mismatch) —
+ * that is what signs out the other devices after a change or a reset.
+ */
 export async function getCurrentUser(): Promise<User | null> {
   const session = await getSession();
   if (!session?.sub) return null;
   const user = await prisma.user.findUnique({ where: { id: session.sub } });
   if (!user || !user.active) return null;
+  if ((session.ver ?? 0) !== user.sessionVersion) return null;
+  return user;
+}
+
+/** Where a page sends a dead session: clears the cookie, then /login (see /api/auth/signout). */
+export const SIGNOUT_PATH = "/api/auth/signout";
+
+/**
+ * For server pages. The middleware only checks the JWT signature (no database
+ * on the edge), so a cookie of a deactivated user or from before a password
+ * change still gets through it. Pages cannot delete cookies, and sending
+ * straight to /login would loop (the middleware bounces a signed cookie away
+ * from /login) — so it goes through the route handler that clears it.
+ */
+export async function requirePageUser(): Promise<User> {
+  const user = await getCurrentUser();
+  if (!user) redirect(SIGNOUT_PATH);
   return user;
 }
 

@@ -1,4 +1,4 @@
-import { getCurrentUser } from "@/lib/auth";
+import { requirePageUser } from "@/lib/auth";
 import { AppShell } from "@/components/AppShell";
 import { AdminPanel } from "@/components/AdminPanel";
 import { getServerDictionary } from "@/lib/i18n/server";
@@ -8,8 +8,7 @@ export const dynamic = "force-dynamic";
 // Every role gets in here — AdminPanel decides the visible tabs by role
 // (style/templates: everyone; users: manager+admin; API keys: admin only).
 export default async function AdminPage() {
-  const user = await getCurrentUser();
-  if (!user) return null;
+  const user = await requirePageUser();
 
   const { dict } = await getServerDictionary();
 

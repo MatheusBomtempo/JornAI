@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getCurrentUser } from "@/lib/auth";
+import { requirePageUser } from "@/lib/auth";
 import { getServerDictionary } from "@/lib/i18n/server";
 import { CompanyOnboardingForm } from "@/components/CompanyOnboardingForm";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
@@ -8,8 +8,7 @@ import { Logo } from "@/components/Logo";
 export const dynamic = "force-dynamic";
 
 export default async function OnboardingPage() {
-  const user = await getCurrentUser();
-  if (!user) redirect("/login");
+  const user = await requirePageUser();
   if (user.companyId) redirect("/dashboard");
 
   const { dict } = await getServerDictionary();
